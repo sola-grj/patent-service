@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ops:world-patent-data xmlns:ops="http://ops.epo.org" xmlns="http://www.epo.org/exchange">
+  <ops:document-inquiry>
+    <ops:inquiry-result>
+      <publication-reference>
+        <document-id document-id-type="docdb">
+          <country>EP</country>
+          <doc-number>1234567</doc-number>
+          <kind>A1</kind>
+        </document-id>
+      </publication-reference>
+      <ops:document-instance
+        system="ops.epo.org"
+        link="EP/1234567/A1/fullimage"
+        number-of-pages="14"
+        desc="FullDocument">
+        <ops:document-format-options>
+          <ops:document-format>application/pdf</ops:document-format>
+          <ops:document-format>application/tiff</ops:document-format>
+        </ops:document-format-options>
+      </ops:document-instance>
+    </ops:inquiry-result>
+  </ops:document-inquiry>
+</ops:world-patent-data>

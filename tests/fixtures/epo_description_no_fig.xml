@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ops:world-patent-data xmlns:ops="http://ops.epo.org" xmlns="http://www.epo.org/exchange">
+  <fulltext-documents>
+    <fulltext-document system="ops.epo.org" fulltext-format="text-only">
+      <description lang="EN">
+        <p>[0001] A widget for counting words in patent descriptions.</p>
+        <p>This paragraph mentions drawings without explicit figure labels.</p>
+      </description>
+    </fulltext-document>
+  </fulltext-documents>
+</ops:world-patent-data>

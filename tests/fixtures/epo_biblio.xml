@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ops:world-patent-data xmlns:ops="http://ops.epo.org" xmlns="http://www.epo.org/exchange">
+  <exchange-documents>
+    <exchange-document country="EP" doc-number="1234567" kind="A1">
+      <bibliographic-data>
+        <publication-reference>
+          <document-id document-id-type="docdb">
+            <country>EP</country>
+            <doc-number>1234567</doc-number>
+            <kind>A1</kind>
+            <date>20260701</date>
+          </document-id>
+        </publication-reference>
+        <application-reference>
+          <document-id document-id-type="docdb">
+            <country>EP</country>
+            <doc-number>2026000123</doc-number>
+            <kind>A</kind>
+          </document-id>
+          <document-id document-id-type="epodoc">
+            <doc-number>EP2026000123</doc-number>
+            <date>20260115</date>
+          </document-id>
+          <document-id document-id-type="original">
+            <doc-number>2026000123.8</doc-number>
+          </document-id>
+        </application-reference>
+        <parties>
+          <applicants>
+            <applicant>
+              <applicant-name>
+                <name>Example Applicant GmbH</name>
+              </applicant-name>
+            </applicant>
+          </applicants>
+          <inventors>
+            <inventor>
+              <inventor-name>
+                <name>Jane Inventor</name>
+              </inventor-name>
+            </inventor>
+          </inventors>
+        </parties>
+        <invention-title lang="en">Example Widget</invention-title>
+        <classifications-ipcr>
+          <classification-ipcr>
+            <text>A01B 1/00</text>
+          </classification-ipcr>
+        </classifications-ipcr>
+        <patent-classifications>
+          <patent-classification>
+            <text>B01D 53/00</text>
+          </patent-classification>
+        </patent-classifications>
+      </bibliographic-data>
+      <abstract lang="en">
+        <p>Example abstract text.</p>
+      </abstract>
+    </exchange-document>
+  </exchange-documents>
+</ops:world-patent-data>

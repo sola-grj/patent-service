@@ -1,0 +1,1 @@
+"""patent-service backend package."""
