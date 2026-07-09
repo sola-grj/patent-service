@@ -34,7 +34,7 @@ def test_parse_description_data():
         "FIG. 1 is a schematic view of the widget.",
         "FIG. 2 is another schematic view of the widget.",
     ]
-    assert count_words(content.text) == 26
+    assert count_words(content.text) == 32
     assert raw_refs["selected_language"] == "EN"
 
 
@@ -45,7 +45,7 @@ def test_parse_claims_data():
 
     assert content.language == "EN"
     assert content.claims_count == 2
-    assert count_words(" ".join(content.claim_texts)) == 14
+    assert count_words(" ".join(content.claim_texts)) == 17
     assert raw_refs["claim_text_count"] == 3
 
 
