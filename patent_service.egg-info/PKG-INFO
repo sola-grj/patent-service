@@ -11,6 +11,8 @@ Requires-Dist: uvicorn[standard]<1.0.0,>=0.35.0
 Requires-Dist: zeep<5.0.0,>=4.3.1
 Provides-Extra: dev
 Requires-Dist: pytest<9.0.0,>=8.4.0; extra == "dev"
+Provides-Extra: probe
+Requires-Dist: selenium<5.0.0,>=4.24.0; extra == "probe"
 
 # patent-service backend
 
@@ -19,7 +21,7 @@ Focused Python backend for patent retrieval by publication number.
 Current scope:
 
 - `EP...` lookup via official EPO services
-- `WO...` lookup via official WIPO PATENTSCOPE SOAP webservice
+- `WO...` lookup via WIPO PATENTSCOPE public detail pages or official PATENTSCOPE SOAP webservice
 - no file parsing yet
 
 ## Setup
@@ -49,17 +51,45 @@ Optional overrides:
 - `PATENT_SERVICE_WIPO_PATENTSCOPE_SERVICE_URL`
 - `PATENT_SERVICE_WIPO_PATENTSCOPE_USERNAME`
 - `PATENT_SERVICE_WIPO_PATENTSCOPE_PASSWORD`
+- `PATENT_SERVICE_WIPO_LOOKUP_MODE`
+- `PATENT_SERVICE_WIPO_PUBLIC_BASE_URL`
 
 WIPO requirements:
 
 - `PATENT_SERVICE_WIPO_PATENTSCOPE_SERVICE_URL` should point to the PATENTSCOPE SOAP service or WSDL URL. Example: `https://www.wipo.int/patentscope-webservice/servicesPatentScope?wsdl`
 - `PATENT_SERVICE_WIPO_PATENTSCOPE_USERNAME` and `PATENT_SERVICE_WIPO_PATENTSCOPE_PASSWORD` come from a paid PATENTSCOPE webservice subscription, not from the free public search UI alone.
+- `PATENT_SERVICE_WIPO_LOOKUP_MODE` accepts `auto`, `public_page`, or `soap`. Default: `auto`.
+- `PATENT_SERVICE_WIPO_PUBLIC_BASE_URL` defaults to `https://patentscope.wipo.int/search/en`.
 
 ## Run
 
 ```bash
 uvicorn app.main:app --reload
 ```
+
+## Selenium Probe
+
+Use the standalone Selenium probe only for diagnosis of WIPO public-page behavior. It is not part of the API runtime path.
+
+Install the probe dependency:
+
+```bash
+pip install -e .[probe]
+```
+
+Run the probe:
+
+```bash
+python scripts/wipo_selenium_probe.py --username YOUR_USER --password YOUR_PASS --doc-id WO2026044310 --cid P11-MREAVK-01901-1
+```
+
+The probe logs in through the real WIPO browser flow, opens the target detail page in Chrome, and writes:
+
+- a JSON summary to stdout
+- `detail.html`
+- `detail.png`
+
+Default artifact directory: `artifacts/wipo-selenium-probe/`
 
 ## API
 
@@ -104,7 +134,9 @@ No parsing support yet. File parsing endpoints are intentionally not implemented
 
 - `EP` metadata uses official EPO OPS and therefore requires OPS credentials.
 - `EP` original file URLs are exposed via the official European Publication Server once the publication reference is resolved.
-- `WO` retrieval uses the official PATENTSCOPE SOAP webservice, which is a paid and authenticated service.
-- `WO` original files are materialized into a local temporary file and exposed through `original_file.storage_path`; PATENTSCOPE does not provide the same anonymous public PDF URL pattern as EPO.
+- `WO` lookup in `public_page` mode is a low-frequency, best-effort metadata path built on top of PATENTSCOPE detail pages. It is not a high-stability bulk data channel.
+- `WO` public-page mode does not download original files. When `include_original_file=true`, only `auto` mode with configured SOAP credentials can fall back to the authenticated SOAP client for file retrieval.
+- `WO` original files fetched through SOAP are materialized into a local temporary file and exposed through `original_file.storage_path`; PATENTSCOPE does not provide the same anonymous public PDF URL pattern as EPO.
 - The WIPO SOAP operation signatures are resolved against the authenticated WSDL at runtime. If your subscription exposes a different method contract than expected, the service returns a source-specific upstream error instead of scraping public PATENTSCOPE pages.
+- WIPO PATENTSCOPE public Terms of Use explicitly prohibit automated queries, bulk downloading, and web scraping as of the page revision labeled `Last updated: October 2025`. Use public-page mode only with that operational and compliance risk understood.
 - `include_original_file=true` is only supported when the upstream source exposes a publication document payload for that record.

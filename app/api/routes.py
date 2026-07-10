@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends
 from app.clients.epo_ops import EpoOpsClient
 from app.clients.epo_publication_server import EpoPublicationServerClient
 from app.clients.wipo_patentscope import WipoPatentScopeClient
+from app.clients.wipo_patentscope_selenium import WipoPatentScopeSeleniumClient
 from app.config import Settings, get_settings
 from app.models.patents import PatentLookupApiResponse, PatentLookupRequest
 from app.services.patent_lookup import PatentLookupService
@@ -14,11 +15,13 @@ def get_lookup_service(
     settings: Settings = Depends(get_settings),
 ) -> PatentLookupService:
     return PatentLookupService(
+        settings=settings,
         epo_ops_client=EpoOpsClient(settings),
         epo_publication_server_client=EpoPublicationServerClient(
             settings.epo_publication_server_url
         ),
         wipo_client=WipoPatentScopeClient(settings),
+        wipo_public_client=WipoPatentScopeSeleniumClient(settings),
     )
 
 

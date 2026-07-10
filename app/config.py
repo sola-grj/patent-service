@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -16,6 +17,11 @@ class Settings(BaseSettings):
     wipo_patentscope_service_url: str | None = None
     wipo_patentscope_username: str | None = None
     wipo_patentscope_password: str | None = None
+    wipo_lookup_mode: Literal["auto", "public_page", "soap"] = "auto"
+    wipo_public_base_url: str = "https://patentscope.wipo.int/search/en"
+    wipo_selenium_chrome_binary: str | None = None
+    wipo_selenium_headless: bool = False
+    wipo_selenium_timeout_seconds: float = 45.0
     request_timeout_seconds: float = 20.0
 
     model_config = SettingsConfigDict(

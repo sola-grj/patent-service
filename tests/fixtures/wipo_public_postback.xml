@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<partial-response>
+  <changes>
+    <update id="detailForm:biblioPanel"><![CDATA[
+      <div id="detailForm:biblioPanel">
+        <div>Publication Number</div>
+        <div>WO/2026/044310</div>
+
+        <div>Publication Date</div>
+        <div>05.03.2026</div>
+
+        <div>International Application No.</div>
+        <div>PCT/AT2025/060321</div>
+
+        <div>International Filing Date</div>
+        <div>14.08.2025</div>
+
+        <div>Title</div>
+        <div>[EN] COVER FOR A CONTAINER</div>
+
+        <div>IPC</div>
+        <div>A47J 36/06 2006.1</div>
+
+        <div>CPC</div>
+        <div>A47J 36/06</div>
+        <div>A47J 36/12</div>
+
+        <div>Applicants</div>
+        <div>OSKARI GMBH [AT]/[AT]</div>
+        <div>Villacher Straße 95</div>
+        <div>9800 Spittal an der Drau</div>
+        <div>Austria</div>
+
+        <div>Inventors</div>
+        <div>MAROLT, Oswald</div>
+
+        <div>Agents</div>
+        <div>BABELUK PATENTANWÄLTE GMBH</div>
+        <div>Florianigasse 26/3</div>
+        <div>1080 Wien</div>
+
+        <div>Abstract</div>
+        <div>[EN] The present invention relates to a cover for a container.</div>
+      </div>
+    ]]></update>
+  </changes>
+</partial-response>

@@ -114,6 +114,18 @@ def test_lookup_response_contract_for_wo():
     payload = response.json()
     assert payload["source"] == "wipo"
     assert payload["basic_info"]["title"] == "WO result"
+    assert payload["application_date"] is None
+    assert payload["application_no"] is None
+    assert payload["publication_date"] is None
+    assert payload["publication_no"] is None
+    assert payload["description_words"] is None
+    assert payload["claims_count"] is None
+    assert payload["claims_words"] is None
+    assert payload["drawings"] == {
+        "has_drawings": False,
+        "drawing_page_count": None,
+        "drawing_labels": [],
+    }
     assert payload["original_file"]["available"] is False
 
 

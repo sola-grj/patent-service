@@ -10,12 +10,14 @@ pyproject.toml
 ./app/clients/epo_ops.py
 ./app/clients/epo_publication_server.py
 ./app/clients/wipo_patentscope.py
+./app/clients/wipo_patentscope_public.py
 ./app/models/__init__.py
 ./app/models/patents.py
 ./app/services/__init__.py
 ./app/services/patent_lookup.py
 ./app/utils/__init__.py
 ./app/utils/patent_numbers.py
+./app/utils/text_metrics.py
 app/__init__.py
 app/config.py
 app/errors.py
@@ -41,3 +43,5 @@ tests/test_api.py
 tests/test_epo_mapping.py
 tests/test_patent_numbers.py
 tests/test_wipo_patentscope.py
+tests/test_wipo_patentscope_public.py
+tests/test_wipo_selenium_probe.py

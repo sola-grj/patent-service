@@ -51,17 +51,6 @@ class PatentOriginalFile(BaseModel):
     storage_path: str = ""
 
 
-class PatentLookupResponse(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    source: PatentSource
-    normalized_number: str
-    display_number: str
-    basic_info: PatentBasicInfo
-    original_file: PatentOriginalFile
-    raw_source_refs: dict[str, Any] = Field(default_factory=dict)
-
-
 class PatentLookupWarning(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -69,6 +58,27 @@ class PatentLookupWarning(BaseModel):
     field: str
     message: str
     source: str
+
+
+class PatentLookupResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source: PatentSource
+    normalized_number: str
+    display_number: str
+    basic_info: PatentBasicInfo
+    application_date: str | None = None
+    application_no: str | None = None
+    publication_date: str | None = None
+    publication_no: str | None = None
+    abstract_words: int | None = None
+    description_words: int | None = None
+    claims_count: int | None = None
+    claims_words: int | None = None
+    drawings: "PatentDrawingsInfo" = Field(default_factory=lambda: PatentDrawingsInfo())
+    original_file: PatentOriginalFile
+    warnings: list[PatentLookupWarning] = Field(default_factory=list)
+    raw_source_refs: dict[str, Any] = Field(default_factory=dict)
 
 
 class PatentDrawingsInfo(BaseModel):

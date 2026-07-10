@@ -1,10 +1,11 @@
 import asyncio
 from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Any, Protocol
 
 from app.clients.epo_ops import EpoClaimsContent, EpoDescriptionContent, EpoOpsClient
 from app.clients.epo_publication_server import EpoPublicationServerClient
 from app.clients.wipo_patentscope import WipoPatentScopeClient
+from app.config import Settings
 from app.errors import ErrorCode, PatentServiceError
 from app.models.patents import (
     PatentDrawingsInfo,
@@ -21,17 +22,27 @@ from app.utils.patent_numbers import normalize_patent_number
 from app.utils.text_metrics import count_words
 
 
+class WipoLookupClient(Protocol):
+    async def lookup_patent(
+        self, reference: PatentReference, *, include_original_file: bool
+    ) -> PatentLookupResponse: ...
+
+
 class PatentLookupService:
     def __init__(
         self,
         *,
+        settings: Settings,
         epo_ops_client: EpoOpsClient,
         epo_publication_server_client: EpoPublicationServerClient,
-        wipo_client: WipoPatentScopeClient,
+        wipo_client: WipoLookupClient,
+        wipo_public_client: WipoLookupClient,
     ) -> None:
+        self._settings = settings
         self._epo_ops_client = epo_ops_client
         self._epo_publication_server_client = epo_publication_server_client
         self._wipo_client = wipo_client
+        self._wipo_public_client = wipo_public_client
 
     async def lookup_patent(
         self, request: PatentLookupRequest
@@ -39,7 +50,7 @@ class PatentLookupService:
         reference = normalize_patent_number(request.patent_number)
         if reference.source is PatentSource.EPO:
             return await self._lookup_ep(reference)
-        return await self._wipo_client.lookup_patent(
+        return await self._lookup_wo(
             reference, include_original_file=request.include_original_file
         )
 
@@ -243,6 +254,104 @@ class PatentLookupService:
             kind_code=kind_code,
         )
 
+    async def _lookup_wo(
+        self,
+        reference: PatentReference,
+        *,
+        include_original_file: bool,
+    ) -> PatentLookupResponse:
+        mode = self._settings.wipo_lookup_mode
+        if mode == "soap":
+            response = await self._wipo_client.lookup_patent(
+                reference, include_original_file=include_original_file
+            )
+            return self._finalize_wo_response(response)
+        if mode == "public_page":
+            response = await self._wipo_public_client.lookup_patent(
+                reference, include_original_file=include_original_file
+            )
+            return self._finalize_wo_response(response)
+
+        try:
+            response = await self._wipo_public_client.lookup_patent(
+                reference, include_original_file=False
+            )
+        except PatentServiceError as exc:
+            if self._settings.wipo_patentscope_configured and exc.code in {
+                ErrorCode.SOURCE_RATE_LIMIT,
+                ErrorCode.SOURCE_UNAVAILABLE,
+                ErrorCode.UPSTREAM_RESPONSE_INVALID,
+            }:
+                response = await self._wipo_client.lookup_patent(
+                    reference, include_original_file=include_original_file
+                )
+                return self._finalize_wo_response(response)
+            raise
+
+        if not include_original_file or response.original_file.available:
+            return self._finalize_wo_response(response)
+
+        if not self._settings.wipo_patentscope_configured:
+            return self._finalize_wo_response(response)
+
+        try:
+            soap_response = await self._wipo_client.lookup_patent(
+                reference, include_original_file=True
+            )
+        except PatentServiceError:
+            return self._finalize_wo_response(response)
+
+        if not soap_response.original_file.available:
+            return self._finalize_wo_response(response)
+
+        merged_refs = dict(response.raw_source_refs)
+        merged_refs["soap_original_file"] = soap_response.raw_source_refs
+        merged_response = response.model_copy(
+            update={
+                "original_file": soap_response.original_file,
+                "raw_source_refs": merged_refs,
+            }
+        )
+        return self._finalize_wo_response(merged_response)
+
+    def _finalize_wo_response(self, response: PatentLookupResponse) -> PatentLookupResponse:
+        raw_refs = response.raw_source_refs
+        application_ref = _as_dict(raw_refs.get("application_reference"))
+        publication_ref = _as_dict(raw_refs.get("publication_reference"))
+
+        return response.model_copy(
+            update={
+                "application_date": response.application_date
+                or _first_non_empty_value(
+                    raw_refs.get("application_filing_date"),
+                    application_ref.get("selected_date"),
+                    application_ref.get("date"),
+                ),
+                "application_no": response.application_no
+                or _first_non_empty_value(
+                    response.basic_info.application_number,
+                    application_ref.get("selected_number"),
+                    application_ref.get("pct_number"),
+                    application_ref.get("full_number"),
+                ),
+                "publication_date": response.publication_date
+                or _first_non_empty_value(
+                    response.basic_info.publication_date,
+                    publication_ref.get("selected_date"),
+                    publication_ref.get("date"),
+                ),
+                "publication_no": response.publication_no
+                or _first_non_empty_value(
+                    raw_refs.get("publication_number"),
+                    publication_ref.get("selected_number"),
+                    publication_ref.get("full_number"),
+                ),
+                "abstract_words": response.abstract_words
+                if response.abstract_words is not None
+                else count_words(response.basic_info.abstract),
+            }
+        )
+
 
 def _build_warning(*, code: str, field: str, message: str) -> PatentLookupWarning:
     return PatentLookupWarning(code=code, field=field, message=message, source="epo")
@@ -263,4 +372,21 @@ def _resolve_publication_number(
     kind_code = publication_reference.get("kind")
     if country_code and doc_number and kind_code:
         return f"{country_code}{doc_number}{kind_code}"
+    return None
+
+
+def _as_dict(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _first_non_empty_value(*values: Any) -> str | None:
+    for value in values:
+        if value is None:
+            continue
+        if isinstance(value, str):
+            cleaned = value.strip()
+            if cleaned:
+                return cleaned
+            continue
+        return str(value)
     return None

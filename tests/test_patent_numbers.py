@@ -4,6 +4,7 @@ import pytest
 
 from app.errors import ErrorCode
 from app.clients.epo_ops import EpoClaimsContent, EpoDescriptionContent
+from app.config import Settings
 from app.errors import PatentServiceError
 from app.models.patents import (
     PatentBasicInfo,
@@ -142,9 +143,84 @@ class StubWipoClient:
             source=PatentSource.WIPO,
             normalized_number=reference.normalized_number,
             display_number=reference.display_number,
-            basic_info=PatentBasicInfo(title="WO result"),
+            basic_info=PatentBasicInfo(
+                title="WO result",
+                abstract="A sample SOAP abstract.",
+                publication_date="20260702",
+                application_number="PCT/AT2025060458",
+            ),
             original_file=PatentOriginalFile(available=include_original_file),
-            raw_source_refs={"source": "stub"},
+            raw_source_refs={
+                "source": "stub",
+                "publication_reference": {
+                    "full_number": "WO2026137030A1",
+                    "date": "20260702",
+                },
+                "application_reference": {
+                    "pct_number": "PCT/AT2025060458",
+                    "date": "20251219",
+                },
+            },
+        )
+
+
+class StubWipoPublicClient(StubWipoClient):
+    pass
+
+
+class StubWipoPublicNoFileClient:
+    async def lookup_patent(self, reference: PatentReference, *, include_original_file: bool) -> PatentLookupResponse:
+        del include_original_file
+        return PatentLookupResponse(
+            source=PatentSource.WIPO,
+            normalized_number=reference.normalized_number,
+            display_number=reference.display_number,
+            basic_info=PatentBasicInfo(
+                title="WO public result",
+                abstract="The public page abstract.",
+                publication_date="20260305",
+                application_number="PCT/AT2025/060321",
+            ),
+            original_file=PatentOriginalFile(),
+            raw_source_refs={
+                "lookup_mode": "public_page",
+                "source": "public",
+                "publication_number": "WO/2026/137030",
+                "application_filing_date": "20250814",
+            },
+        )
+
+
+class StubWipoPublicSuccessClient:
+    async def lookup_patent(self, reference: PatentReference, *, include_original_file: bool) -> PatentLookupResponse:
+        return PatentLookupResponse(
+            source=PatentSource.WIPO,
+            normalized_number=reference.normalized_number,
+            display_number=reference.display_number,
+            basic_info=PatentBasicInfo(
+                title="WO public result",
+                abstract="The public page abstract.",
+                publication_date="20260305",
+                application_number="PCT/AT2025/060321",
+            ),
+            original_file=PatentOriginalFile(available=include_original_file),
+            raw_source_refs={
+                "lookup_mode": "public_page",
+                "source": "public",
+                "publication_number": "WO/2026/137030",
+                "application_filing_date": "20250814",
+            },
+        )
+
+
+class StubWipoPublicFailClient:
+    async def lookup_patent(self, reference: PatentReference, *, include_original_file: bool) -> PatentLookupResponse:
+        del reference, include_original_file
+        raise PatentServiceError(
+            code=ErrorCode.UPSTREAM_RESPONSE_INVALID,
+            status_code=502,
+            message="public page parse failed",
+            source="wipo",
         )
 
 
@@ -186,9 +262,11 @@ class StubEpoOpsMissingTextClient(StubEpoOpsClient):
 
 def test_lookup_service_routes_ep_and_wo():
     service = PatentLookupService(
+        settings=Settings(),
         epo_ops_client=StubEpoOpsClient(),
         epo_publication_server_client=StubPublicationServerClient(),
         wipo_client=StubWipoClient(),
+        wipo_public_client=StubWipoPublicClient(),
     )
 
     ep_response = asyncio.run(
@@ -220,9 +298,11 @@ def test_lookup_service_routes_ep_and_wo():
 
 def test_lookup_service_returns_warnings_when_description_or_claims_are_missing():
     service = PatentLookupService(
+        settings=Settings(),
         epo_ops_client=StubEpoOpsMissingTextClient(),
         epo_publication_server_client=StubPublicationServerClient(),
         wipo_client=StubWipoClient(),
+        wipo_public_client=StubWipoPublicClient(),
     )
 
     ep_response = asyncio.run(
@@ -242,3 +322,121 @@ def test_lookup_service_returns_warnings_when_description_or_claims_are_missing(
         "claims_count",
         "claims_words",
     }
+
+
+def test_lookup_service_auto_falls_back_to_soap_for_original_file_only():
+    service = PatentLookupService(
+        settings=Settings(
+            wipo_lookup_mode="auto",
+            wipo_patentscope_service_url="https://example.test/wsdl",
+            wipo_patentscope_username="demo-user",
+            wipo_patentscope_password="demo-pass",
+        ),
+        epo_ops_client=StubEpoOpsClient(),
+        epo_publication_server_client=StubPublicationServerClient(),
+        wipo_client=StubWipoClient(),
+        wipo_public_client=StubWipoPublicNoFileClient(),
+    )
+
+    response = asyncio.run(
+        service.lookup_patent(
+            PatentLookupRequest(
+                patent_number="WO2026137030A1", include_original_file=True
+            )
+        )
+    )
+
+    assert response.source is PatentSource.WIPO
+    assert response.basic_info.title == "WO public result"
+    assert response.original_file.available is True
+    assert response.application_date == "20250814"
+    assert response.application_no == "PCT/AT2025/060321"
+    assert response.publication_date == "20260305"
+    assert response.publication_no == "WO/2026/137030"
+    assert response.abstract_words == 4
+    assert response.description_words is None
+    assert response.claims_count is None
+    assert response.claims_words is None
+    assert response.drawings == PatentDrawingsInfo()
+    assert response.raw_source_refs["lookup_mode"] == "public_page"
+    assert response.raw_source_refs["soap_original_file"]["source"] == "stub"
+
+
+def test_lookup_service_auto_falls_back_to_soap_when_public_page_fails():
+    service = PatentLookupService(
+        settings=Settings(
+            wipo_lookup_mode="auto",
+            wipo_patentscope_service_url="https://example.test/wsdl",
+            wipo_patentscope_username="demo-user",
+            wipo_patentscope_password="demo-pass",
+        ),
+        epo_ops_client=StubEpoOpsClient(),
+        epo_publication_server_client=StubPublicationServerClient(),
+        wipo_client=StubWipoClient(),
+        wipo_public_client=StubWipoPublicFailClient(),
+    )
+
+    response = asyncio.run(
+        service.lookup_patent(
+            PatentLookupRequest(
+                patent_number="WO2026137030A1", include_original_file=False
+            )
+        )
+    )
+
+    assert response.source is PatentSource.WIPO
+    assert response.basic_info.title == "WO result"
+    assert response.application_date == "20251219"
+    assert response.application_no == "PCT/AT2025060458"
+    assert response.publication_date == "20260702"
+    assert response.publication_no == "WO2026137030A1"
+    assert response.abstract_words == 4
+
+
+def test_lookup_service_public_page_mode_uses_public_client():
+    service = PatentLookupService(
+        settings=Settings(wipo_lookup_mode="public_page"),
+        epo_ops_client=StubEpoOpsClient(),
+        epo_publication_server_client=StubPublicationServerClient(),
+        wipo_client=StubWipoClient(),
+        wipo_public_client=StubWipoPublicSuccessClient(),
+    )
+
+    response = asyncio.run(
+        service.lookup_patent(
+            PatentLookupRequest(
+                patent_number="WO2026137030A1", include_original_file=False
+            )
+        )
+    )
+
+    assert response.basic_info.title == "WO public result"
+    assert response.application_date == "20250814"
+    assert response.application_no == "PCT/AT2025/060321"
+    assert response.publication_date == "20260305"
+    assert response.publication_no == "WO/2026/137030"
+    assert response.raw_source_refs["lookup_mode"] == "public_page"
+
+
+def test_lookup_service_soap_mode_uses_soap_client():
+    service = PatentLookupService(
+        settings=Settings(wipo_lookup_mode="soap"),
+        epo_ops_client=StubEpoOpsClient(),
+        epo_publication_server_client=StubPublicationServerClient(),
+        wipo_client=StubWipoClient(),
+        wipo_public_client=StubWipoPublicSuccessClient(),
+    )
+
+    response = asyncio.run(
+        service.lookup_patent(
+            PatentLookupRequest(
+                patent_number="WO2026137030A1", include_original_file=False
+            )
+        )
+    )
+
+    assert response.basic_info.title == "WO result"
+    assert response.application_date == "20251219"
+    assert response.application_no == "PCT/AT2025060458"
+    assert response.publication_date == "20260702"
+    assert response.publication_no == "WO2026137030A1"
