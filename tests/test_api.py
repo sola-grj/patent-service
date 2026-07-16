@@ -25,6 +25,11 @@ class StubLookupService:
             cpc=["B01D 53/00"],
             applicants=["Example Applicant GmbH"],
             inventors=["Jane Inventor"],
+            language="EN",
+            first_priority_date="20231013",
+            international_filing_date="20241011",
+            filing_deadline_30_months="20260413",
+            filing_deadline_31_months="20260513",
             application_date="20260115",
             application_no="EP2026000123",
             publication_date="20260701",
@@ -33,6 +38,7 @@ class StubLookupService:
             description_words=8,
             claims_count=2,
             claims_words=9,
+            total_pages=73,
             drawings=PatentDrawingsInfo(
                 has_drawings=True,
                 drawing_page_count=2,
@@ -93,6 +99,12 @@ def test_lookup_response_contract_for_ep():
     assert payload["source"] == "epo"
     assert payload["publication_no"] == "EP1234567A1"
     assert payload["application_no"] == "EP2026000123"
+    assert payload["language"] == "EN"
+    assert payload["first_priority_date"] == "20231013"
+    assert payload["international_filing_date"] == "20241011"
+    assert payload["filing_deadline_30_months"] == "20260413"
+    assert payload["filing_deadline_31_months"] == "20260513"
+    assert payload["total_pages"] == 73
     assert payload["drawings"]["has_drawings"] is True
     assert payload["original_file_download_url"].endswith(
         "/EP1234567NWA1/document.pdf"

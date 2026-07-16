@@ -70,6 +70,9 @@ class StubEpoOpsClient:
     async def fetch_images_metadata(self, reference: PatentReference) -> str:
         return "<unused />"
 
+    async def fetch_family_bibliographic_data(self, reference: PatentReference) -> str:
+        return "<unused />"
+
     def parse_bibliographic_data(self, xml_text: str):
         return (
             PatentBasicInfo(
@@ -91,6 +94,9 @@ class StubEpoOpsClient:
                     "selected_number": "EP2026000123",
                     "selected_date": "20260115",
                 },
+                "title_language": "EN",
+                "abstract_language": "EN",
+                "first_priority_date": "20231013",
             },
         )
 
@@ -130,8 +136,12 @@ class StubEpoOpsClient:
                 },
                 "has_drawings": True,
                 "drawing_page_count": 3,
+                "page_count": 14,
             },
         )
+
+    def parse_family_international_filing_date(self, xml_text: str):
+        return "20241011", {"wo_members": [{"filing_date": "20241011"}]}
 
     def build_biblio_path(self, reference: PatentReference) -> str:
         return "/published-data/publication/epodoc/example/biblio"
@@ -144,6 +154,9 @@ class StubEpoOpsClient:
 
     def build_images_path(self, reference: PatentReference) -> str:
         return "/published-data/publication/epodoc/example/images"
+
+    def build_family_biblio_path(self, reference: PatentReference) -> str:
+        return "/family/publication/docdb/EP.1234567.A1/biblio"
 
 
 class StubPublicationServerClient:
@@ -301,6 +314,12 @@ def test_lookup_service_routes_ep_and_wo():
     assert ep_response.source is PatentSource.EPO
     assert isinstance(ep_response, PatentLookupEpResponse)
     assert ep_response.publication_no == "EP1234567A1"
+    assert ep_response.language == "EN"
+    assert ep_response.first_priority_date == "20231013"
+    assert ep_response.international_filing_date == "20241011"
+    assert ep_response.filing_deadline_30_months == "20260413"
+    assert ep_response.filing_deadline_31_months == "20260513"
+    assert ep_response.total_pages == 14
     assert ep_response.original_file_download_url.endswith("/EP/1234567/A1.pdf")
     assert ep_response.drawings == PatentDrawingsInfo(
         has_drawings=True,

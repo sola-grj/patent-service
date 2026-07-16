@@ -166,6 +166,14 @@ Example `WO` request:
 }
 ```
 
+The `EP` response includes the publication language, earliest active priority date,
+international filing date when a WO/PCT family member is available, calculated
+30- and 31-month filing dates, full-document page count, claim count, and drawing
+page count. Dates use `YYYYMMDD`. The filing deadlines are calendar-month
+calculations from the earliest priority date, or from the international filing date
+when no priority is available; they do not apply office-closure or procedural
+extensions.
+
 ## Supported Patent Number Formats
 
 Currently accepted input patterns:
@@ -186,6 +194,8 @@ No parsing support yet. File parsing endpoints are intentionally not implemented
 
 - `EP` metadata uses official EPO OPS and therefore requires OPS credentials.
 - `EP` original file URLs are exposed via the official European Publication Server once the publication reference is resolved.
+- `EP` international filing dates are resolved from a WO member returned by the OPS family/biblio endpoint. Direct EP applications therefore return `null` for this field.
+- Calculated 30- and 31-month dates are informational and are not a substitute for jurisdiction-specific deadline validation.
 - `WO` lookup in `public_page` mode is a low-frequency, best-effort metadata path built on top of PATENTSCOPE detail pages. It is not a high-stability bulk data channel.
 - `WO` lookup in `public_page` mode now drives a real Chrome session through Selenium and parses the rendered PATENTSCOPE bibliographic DOM. This keeps extraction closer to the browser-visible page, but it also means the service needs a usable local Chrome runtime.
 - `WO` public-page mode now uses Selenium to switch the visible PATENTSCOPE tabs and extract description text, claims text, drawing-page presence, and published-application document links from the rendered DOM.

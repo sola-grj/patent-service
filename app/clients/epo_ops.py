@@ -64,6 +64,13 @@ class EpoOpsClient:
             source="epo",
         )
 
+    async def fetch_family_bibliographic_data(self, reference: PatentReference) -> str:
+        return await self._get_xml(
+            path=self.build_family_biblio_path(reference),
+            accept="application/ops+xml",
+            source="epo",
+        )
+
     def build_biblio_path(self, reference: PatentReference) -> str:
         return f"/published-data/publication/epodoc/{reference.lookup_number}/biblio"
 
@@ -75,6 +82,13 @@ class EpoOpsClient:
 
     def build_images_path(self, reference: PatentReference) -> str:
         return f"/published-data/publication/epodoc/{reference.lookup_number}/images"
+
+    def build_family_biblio_path(self, reference: PatentReference) -> str:
+        kind_code = reference.kind_code or ""
+        return (
+            f"/family/publication/docdb/{reference.country_code}."
+            f"{reference.doc_number}.{kind_code}/biblio"
+        )
 
     async def _get_xml(self, *, path: str, accept: str, source: str) -> str:
         token = await self._get_access_token()
@@ -227,8 +241,39 @@ class EpoOpsClient:
             "application_reference": application_doc,
             "title_language": title_language,
             "abstract_language": abstract_language,
+            "first_priority_date": _first_priority_date(exchange_document),
         }
         return basic_info, raw_refs
+
+    @staticmethod
+    def parse_family_international_filing_date(
+        xml_text: str,
+    ) -> tuple[str | None, dict[str, Any]]:
+        root = _parse_xml(xml_text, source="epo")
+        wo_members: list[dict[str, str]] = []
+        for family_member in _all_local(root.iter(), "family-member"):
+            publication = _collect_document_references(
+                family_member, "publication-reference", reference_kind="publication"
+            )
+            if publication.get("country") != "WO":
+                continue
+            application = _collect_document_references(
+                family_member, "application-reference", reference_kind="application"
+            )
+            filing_date = application.get("selected_date", "")
+            if filing_date:
+                wo_members.append(
+                    {
+                        "publication_number": publication.get("selected_number", ""),
+                        "application_number": application.get("selected_number", ""),
+                        "filing_date": filing_date,
+                    }
+                )
+
+        filing_dates = sorted(
+            {member["filing_date"] for member in wo_members if member["filing_date"]}
+        )
+        return (filing_dates[0] if filing_dates else None), {"wo_members": wo_members}
 
     @staticmethod
     def parse_description_data(
@@ -458,6 +503,19 @@ def _party_names(root: ET.Element, group_name: str, item_name: str) -> list[str]
         if value:
             values.append(value)
     return _unique_texts(values)
+
+
+def _first_priority_date(root: ET.Element) -> str | None:
+    dates: list[str] = []
+    for claim in _all_local(root.iter(), "priority-claim"):
+        active = _first_text(claim, "priority-active-indicator").upper()
+        if active in {"NO", "N", "FALSE", "0"}:
+            continue
+        for document_id in _all_local(claim.iter(), "document-id"):
+            value = _first_text(document_id, "date")
+            if re.fullmatch(r"\d{8}", value):
+                dates.append(value)
+    return min(dates) if dates else None
 
 
 def _collect_document_references(

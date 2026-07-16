@@ -22,6 +22,25 @@ def test_parse_bibliographic_data():
     assert raw_refs["publication_reference"]["selected_number"] == "EP1234567A1"
     assert raw_refs["application_reference"]["selected_number"] == "EP2026000123"
     assert raw_refs["application_reference"]["selected_date"] == "20260115"
+    assert raw_refs["title_language"] == "EN"
+    assert raw_refs["first_priority_date"] == "20231013"
+
+
+def test_parse_family_international_filing_date():
+    xml_text = (FIXTURES_DIR / "epo_family.xml").read_text(encoding="utf-8")
+
+    filing_date, raw_refs = EpoOpsClient.parse_family_international_filing_date(
+        xml_text
+    )
+
+    assert filing_date == "20241011"
+    assert raw_refs["wo_members"] == [
+        {
+            "publication_number": "WO2025076543A1",
+            "application_number": "DK2024050123W",
+            "filing_date": "20241011",
+        }
+    ]
 
 
 def test_parse_description_data():
@@ -60,3 +79,4 @@ def test_parse_original_file_availability():
     assert raw_refs["document_instance_link"] == "EP/1234567/A1/fullimage"
     assert raw_refs["drawing_page_count"] == 7
     assert raw_refs["has_drawings"] is True
+    assert raw_refs["page_count"] == 14

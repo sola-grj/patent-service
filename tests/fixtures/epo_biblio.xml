@@ -25,6 +25,17 @@
             <doc-number>2026000123.8</doc-number>
           </document-id>
         </application-reference>
+        <priority-claims>
+          <priority-claim sequence="1" kind="national">
+            <document-id document-id-type="docdb">
+              <country>DK</country>
+              <doc-number>PA202300999</doc-number>
+              <kind>A</kind>
+              <date>20231013</date>
+            </document-id>
+            <priority-active-indicator>YES</priority-active-indicator>
+          </priority-claim>
+        </priority-claims>
         <parties>
           <applicants>
             <applicant>

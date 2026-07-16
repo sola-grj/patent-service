@@ -1,6 +1,8 @@
 import asyncio
+import calendar
 import logging
 from collections.abc import Awaitable, Callable
+from datetime import date
 from typing import Any, Protocol
 
 from app.clients.epo_ops import EpoClaimsContent, EpoDescriptionContent, EpoOpsClient
@@ -71,13 +73,16 @@ class PatentLookupService:
             biblio_xml
         )
 
-        description_result, claims_result, images_result = await asyncio.gather(
+        description_result, claims_result, images_result, family_result = await asyncio.gather(
             self._fetch_optional_ep_xml(
                 reference, self._epo_ops_client.fetch_description_data
             ),
             self._fetch_optional_ep_xml(reference, self._epo_ops_client.fetch_claims_data),
             self._fetch_optional_ep_xml(
                 reference, self._epo_ops_client.fetch_images_metadata
+            ),
+            self._fetch_optional_ep_xml(
+                reference, self._epo_ops_client.fetch_family_bibliographic_data
             ),
         )
 
@@ -93,6 +98,19 @@ class PatentLookupService:
         claims_count: int | None = None
         claims_words: int | None = None
         original_file_download_url: str | None = None
+        total_pages: int | None = None
+        international_filing_date: str | None = None
+
+        if family_result["xml_text"] is not None:
+            international_filing_date, family_refs = (
+                self._epo_ops_client.parse_family_international_filing_date(
+                    family_result["xml_text"]
+                )
+            )
+            raw_source_refs["ops_family"] = {
+                "endpoint": self._epo_ops_client.build_family_biblio_path(reference),
+                **family_refs,
+            }
 
         if description_result["xml_text"] is None:
             warnings.extend(
@@ -176,6 +194,7 @@ class PatentLookupService:
                     "drawing_page_count": image_refs.get("drawing_page_count"),
                 }
             )
+            total_pages = image_refs.get("page_count")
             raw_source_refs["ops_images"] = {
                 "endpoint": self._epo_ops_client.build_images_path(reference),
                 **image_refs,
@@ -204,6 +223,8 @@ class PatentLookupService:
         publication_reference = image_refs.get("publication_reference") or publication_reference
         application_reference = biblio_refs.get("application_reference", {})
         publication_no = _resolve_publication_number(reference, publication_reference)
+        first_priority_date = biblio_refs.get("first_priority_date")
+        deadline_base_date = first_priority_date or international_filing_date
 
         return PatentLookupEpResponse(
             source=PatentSource.EPO,
@@ -215,6 +236,12 @@ class PatentLookupService:
             cpc=basic_info.cpc,
             applicants=basic_info.applicants,
             inventors=basic_info.inventors,
+            language=biblio_refs.get("title_language")
+            or biblio_refs.get("abstract_language"),
+            first_priority_date=first_priority_date,
+            international_filing_date=international_filing_date,
+            filing_deadline_30_months=_add_months(deadline_base_date, 30),
+            filing_deadline_31_months=_add_months(deadline_base_date, 31),
             application_date=application_reference.get("selected_date") or None,
             application_no=application_reference.get("selected_number") or None,
             publication_date=publication_reference.get("selected_date")
@@ -225,6 +252,7 @@ class PatentLookupService:
             description_words=description_words,
             claims_count=claims_count,
             claims_words=claims_words,
+            total_pages=total_pages,
             drawings=drawings,
             original_file_download_url=original_file_download_url,
             warnings=warnings,
@@ -402,6 +430,20 @@ class PatentLookupService:
 
 def _build_warning(*, code: str, field: str, message: str) -> PatentLookupWarning:
     return PatentLookupWarning(code=code, field=field, message=message, source="epo")
+
+
+def _add_months(value: str | None, months: int) -> str | None:
+    if not value or len(value) != 8 or not value.isdigit():
+        return None
+    try:
+        source = date(int(value[:4]), int(value[4:6]), int(value[6:8]))
+    except ValueError:
+        return None
+    month_index = source.month - 1 + months
+    year = source.year + month_index // 12
+    month = month_index % 12 + 1
+    day = min(source.day, calendar.monthrange(year, month)[1])
+    return date(year, month, day).strftime("%Y%m%d")
 
 
 def _resolve_publication_number(
