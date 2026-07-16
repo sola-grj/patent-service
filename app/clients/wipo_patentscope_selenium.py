@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 import time
 from dataclasses import dataclass, field
@@ -55,6 +56,7 @@ _TAB_SPECS = (
     ("documents", "Documents", ("PTDOCUMENTS", "PCTDOCUMENTS")),
 )
 _TAB_LABEL_LINES = {"description", "claims", "drawings", "documents"}
+logger = logging.getLogger("patent_service")
 
 
 @dataclass(slots=True)
@@ -118,7 +120,21 @@ class WipoPatentScopeSeleniumClient:
             base_url=self._settings.wipo_public_base_url,
             doc_id=doc_id,
         )
+        started_at = time.monotonic()
+        logger.info(
+            "wipo selenium lookup started normalized_number=%s include_original_file=%s detail_url=%s",
+            reference.normalized_number,
+            include_original_file,
+            detail_url,
+        )
         fetch_result = await asyncio.to_thread(self._page_fetcher, detail_url)
+        logger.info(
+            "wipo selenium page fetched normalized_number=%s state=%s current_url=%s elapsed_ms=%s",
+            reference.normalized_number,
+            fetch_result.state,
+            fetch_result.current_url,
+            int((time.monotonic() - started_at) * 1000),
+        )
 
         if fetch_result.state == "captcha":
             raise PatentServiceError(
@@ -215,6 +231,16 @@ class WipoPatentScopeSeleniumClient:
                 original_file.download_url
             )
 
+        logger.info(
+            "wipo selenium lookup finished normalized_number=%s description_available=%s claims_available=%s drawings=%s original_file_available=%s elapsed_ms=%s",
+            reference.normalized_number,
+            bool(description_text),
+            bool(claims_text),
+            drawings.has_drawings,
+            original_file.available,
+            int((time.monotonic() - started_at) * 1000),
+        )
+
         return PatentLookupResponse(
             source=reference.source,
             normalized_number=reference.normalized_number,
@@ -274,7 +300,20 @@ class WipoPatentScopeSeleniumClient:
         timeout_seconds = self._settings.wipo_selenium_timeout_seconds
         driver = None
         try:
-            driver = webdriver.Chrome(service=Service(), options=options)
+            service = (
+                Service(executable_path=self._settings.wipo_selenium_driver_path)
+                if self._settings.wipo_selenium_driver_path
+                else Service()
+            )
+            logger.info(
+                "wipo selenium starting browser detail_url=%s timeout_seconds=%s headless=%s driver_path=%s chrome_binary=%s",
+                detail_url,
+                timeout_seconds,
+                self._settings.wipo_selenium_headless,
+                self._settings.wipo_selenium_driver_path,
+                self._settings.wipo_selenium_chrome_binary,
+            )
+            driver = webdriver.Chrome(service=service, options=options)
             driver.set_page_load_timeout(timeout_seconds)
             wait = WebDriverWait(driver, timeout_seconds)
             if not self._settings.wipo_selenium_headless:
@@ -288,10 +327,23 @@ class WipoPatentScopeSeleniumClient:
             self._wait_for_terminal_state(wait, classify_page_source)
 
             state = classify_page_source(driver.page_source)
+            logger.info(
+                "wipo selenium terminal state detail_url=%s state=%s current_url=%s",
+                detail_url,
+                state,
+                driver.current_url,
+            )
             if state == "shell":
+                logger.info("wipo selenium refreshing shell page detail_url=%s", detail_url)
                 driver.refresh()
                 self._wait_for_terminal_state(wait, classify_page_source)
                 state = classify_page_source(driver.page_source)
+                logger.info(
+                    "wipo selenium state after refresh detail_url=%s state=%s current_url=%s",
+                    detail_url,
+                    state,
+                    driver.current_url,
+                )
 
             tabs: dict[str, SeleniumTabSnapshot] = {}
             if state == "bibliographic":
@@ -321,12 +373,20 @@ class WipoPatentScopeSeleniumClient:
     def _capture_tabs(self, driver: Any, *, by: Any) -> dict[str, SeleniumTabSnapshot]:
         snapshots: dict[str, SeleniumTabSnapshot] = {}
         for key, label, panel_suffixes in _TAB_SPECS:
+            logger.info("wipo selenium capturing tab label=%s current_url=%s", label, driver.current_url)
             snapshots[key] = self._capture_tab_snapshot(
                 driver,
                 by=by,
                 label=label,
                 panel_suffixes=panel_suffixes,
                 current_url=driver.current_url,
+            )
+            logger.info(
+                "wipo selenium captured tab label=%s text_len=%s item_count=%s links=%s",
+                label,
+                len(snapshots[key].text),
+                snapshots[key].item_count,
+                len(snapshots[key].links),
             )
         return snapshots
 

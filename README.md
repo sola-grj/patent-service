@@ -41,6 +41,17 @@ Optional overrides:
 - `PATENT_SERVICE_WIPO_SELENIUM_HEADLESS`
 - `PATENT_SERVICE_WIPO_SELENIUM_TIMEOUT_SECONDS`
 
+`PATENT_SERVICE_EPO_PUBLICATION_SERVER_URL` defaults to the official EPO
+Publication Server REST v1.2 patents endpoint:
+
+```text
+https://data.epo.org/publication-server/rest/v1.2/patents
+```
+
+EP original-file links use the REST PDF resource, for example
+`.../EP1000000NWA1/document.pdf`, rather than the Publication Server's
+browser-oriented `pdf-document` page.
+
 WIPO requirements:
 
 - `PATENT_SERVICE_WIPO_PATENTSCOPE_SERVICE_URL` should point to the PATENTSCOPE SOAP service or WSDL URL. Example: `https://www.wipo.int/patentscope-webservice/servicesPatentScope?wsdl`
@@ -57,6 +68,46 @@ WIPO requirements:
 uvicorn app.main:app --reload
 ```
 
+## Docker Deployment
+
+Recommended production container strategy for the current WIPO Selenium path:
+
+- run FastAPI and Selenium in a single container;
+- keep `PATENT_SERVICE_WIPO_SELENIUM_HEADLESS=false`;
+- provide a virtual display through `Xvfb`;
+- prefer real `google-chrome-stable` on `amd64` Linux;
+- fall back to Debian `chromium` on non-`amd64` images.
+
+The repository now includes a production-oriented `Dockerfile` that follows this model.
+
+Build the image:
+
+```bash
+docker build -t patent-service:latest .
+```
+
+Run the container:
+
+```bash
+docker run --rm -p 9090:9090 --env-file .env -v patent-service-tmp:/tmp/patent-service patent-service:latest
+```
+
+Health check endpoint:
+
+```text
+GET /api/health
+```
+
+The Docker image bakes in a container `HEALTHCHECK` against `http://127.0.0.1:9090/api/health`.
+
+Linux deployment notes:
+
+- `amd64` is the primary target. The image installs `google-chrome-stable` there because WIPO tends to behave better with a real Chrome build than with more synthetic headless paths.
+- On non-`amd64` Debian Bookworm images, the Dockerfile falls back to `chromium` so the image can still run, but this path should be treated as lower-confidence for WIPO compatibility.
+- The container starts the API under `xvfb-run`, so Selenium still uses a visible browser session from Chrome's perspective even though the workload is running server-side.
+- If you scale this service horizontally, each container should keep its own browser session lifecycle. Do not try to share one browser process across containers.
+- If you need persistent access to WIPO SOAP-downloaded original files, keep `/tmp/patent-service` on a named volume or replace the temp-file path with an explicit storage location later.
+
 ## Selenium Probe
 
 The standalone Selenium probe uses the same field extraction rules as the WIPO `public_page` lookup path.
@@ -65,6 +116,15 @@ Run the probe:
 
 ```bash
 python scripts/wipo_selenium_probe.py --doc-id WO2026044310 --cid P11-MREAVK-01901-1
+```
+
+Linux container example with explicit browser and driver paths:
+
+```bash
+python scripts/wipo_selenium_probe.py \
+  --doc-id WO2026044310 \
+  --chrome-binary /usr/bin/chromium \
+  --driver-path /usr/bin/chromedriver
 ```
 
 The probe opens the target detail page in real Chrome via Selenium, classifies the page state, and, when the page is bibliographic, extracts the basic patent fields. It writes:

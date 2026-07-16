@@ -2,6 +2,7 @@ import asyncio
 
 import pytest
 
+from app.clients.epo_publication_server import EpoPublicationServerClient
 from app.errors import ErrorCode
 from app.clients.epo_ops import EpoClaimsContent, EpoDescriptionContent
 from app.config import Settings
@@ -25,6 +26,19 @@ def test_normalize_ep_publication_number():
     assert reference.source is PatentSource.EPO
     assert reference.normalized_number == "EP1234567A1"
     assert reference.lookup_number == "EP1234567.A1"
+
+
+def test_build_ep_publication_server_pdf_url():
+    client = EpoPublicationServerClient(
+        "https://data.epo.org/publication-server/rest/v1.2/patents/"
+    )
+
+    assert client.build_pdf_download_url(
+        country_code="EP", doc_number="1000000", kind_code="A1"
+    ) == (
+        "https://data.epo.org/publication-server/rest/v1.2/patents/"
+        "EP1000000NWA1/document.pdf"
+    )
 
 
 def test_normalize_wo_publication_number():

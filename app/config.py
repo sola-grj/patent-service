@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     epo_ops_consumer_key: str | None = None
     epo_ops_consumer_secret: str | None = None
     epo_publication_server_url: str = (
-        "https://data.epo.org/publication-server/pdf-document"
+        "https://data.epo.org/publication-server/rest/v1.2/patents"
     )
     wipo_patentscope_service_url: str | None = None
     wipo_patentscope_username: str | None = None
@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     wipo_lookup_mode: Literal["auto", "public_page", "soap"] = "auto"
     wipo_public_base_url: str = "https://patentscope.wipo.int/search/en"
     wipo_selenium_chrome_binary: str | None = None
+    wipo_selenium_driver_path: str | None = None
     wipo_selenium_headless: bool = False
     wipo_selenium_timeout_seconds: float = 45.0
     request_timeout_seconds: float = 20.0

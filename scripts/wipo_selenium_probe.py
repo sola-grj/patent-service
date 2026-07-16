@@ -66,8 +66,19 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--chrome-binary",
-        default=os.getenv("WIPO_PROBE_CHROME_BINARY", ""),
+        default=(
+            os.getenv("WIPO_PROBE_CHROME_BINARY")
+            or os.getenv("PATENT_SERVICE_WIPO_SELENIUM_CHROME_BINARY", "")
+        ),
         help="Optional path to chrome.exe when Selenium cannot auto-detect it.",
+    )
+    parser.add_argument(
+        "--driver-path",
+        default=(
+            os.getenv("WIPO_PROBE_DRIVER_PATH")
+            or os.getenv("PATENT_SERVICE_WIPO_SELENIUM_DRIVER_PATH", "")
+        ),
+        help="Optional path to chromedriver when Selenium cannot auto-detect it.",
     )
     parser.add_argument(
         "--headless",
@@ -144,7 +155,7 @@ def run_probe(args: argparse.Namespace) -> ProbeResult:
     options.add_argument("--window-size=1600,1200")
     options.add_argument("--lang=zh-CN")
 
-    service = Service()
+    service = Service(executable_path=args.driver_path) if args.driver_path else Service()
     driver = webdriver.Chrome(service=service, options=options)
     wait = WebDriverWait(driver, args.timeout_seconds)
 

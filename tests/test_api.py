@@ -39,8 +39,8 @@ class StubLookupService:
                 drawing_labels=["FIG. 1 is a view."],
             ),
             original_file_download_url=(
-                "https://data.epo.org/publication-server/pdf-document?"
-                "cc=EP&pn=1234567&ki=A1"
+                "https://data.epo.org/publication-server/rest/v1.2/patents/"
+                "EP1234567NWA1/document.pdf"
             ),
             warnings=[],
             raw_source_refs={"ops_biblio": {"endpoint": "/published-data/example"}},
@@ -94,7 +94,9 @@ def test_lookup_response_contract_for_ep():
     assert payload["publication_no"] == "EP1234567A1"
     assert payload["application_no"] == "EP2026000123"
     assert payload["drawings"]["has_drawings"] is True
-    assert payload["original_file_download_url"].endswith("cc=EP&pn=1234567&ki=A1")
+    assert payload["original_file_download_url"].endswith(
+        "/EP1234567NWA1/document.pdf"
+    )
     assert payload["warnings"] == []
     assert "raw_source_refs" in payload
 

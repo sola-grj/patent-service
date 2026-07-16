@@ -1,3 +1,6 @@
+import logging
+import time
+
 from fastapi import APIRouter, Depends
 
 from app.clients.epo_ops import EpoOpsClient
@@ -9,6 +12,7 @@ from app.models.patents import PatentLookupApiResponse, PatentLookupRequest
 from app.services.patent_lookup import PatentLookupService
 
 router = APIRouter()
+logger = logging.getLogger("patent_service")
 
 
 def get_lookup_service(
@@ -42,4 +46,20 @@ async def lookup_patent(
     request: PatentLookupRequest,
     service: PatentLookupService = Depends(get_lookup_service),
 ) -> PatentLookupApiResponse:
-    return await service.lookup_patent(request)
+    started_at = time.monotonic()
+    logger.info(
+        "lookup request started patent_number=%s include_original_file=%s",
+        request.patent_number,
+        request.include_original_file,
+    )
+    response = await service.lookup_patent(request)
+    elapsed_ms = int((time.monotonic() - started_at) * 1000)
+    logger.info(
+        "lookup request finished patent_number=%s source=%s normalized_number=%s include_original_file=%s elapsed_ms=%s",
+        request.patent_number,
+        response.source,
+        response.normalized_number,
+        request.include_original_file,
+        elapsed_ms,
+    )
+    return response

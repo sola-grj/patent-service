@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from collections.abc import Awaitable, Callable
 from typing import Any, Protocol
 
@@ -28,6 +29,9 @@ class WipoLookupClient(Protocol):
     ) -> PatentLookupResponse: ...
 
 
+logger = logging.getLogger("patent_service")
+
+
 class PatentLookupService:
     def __init__(
         self,
@@ -48,6 +52,13 @@ class PatentLookupService:
         self, request: PatentLookupRequest
     ) -> PatentLookupApiResponse:
         reference = normalize_patent_number(request.patent_number)
+        logger.info(
+            "lookup normalized patent_number=%s source=%s normalized_number=%s include_original_file=%s",
+            request.patent_number,
+            reference.source,
+            reference.normalized_number,
+            request.include_original_file,
+        )
         if reference.source is PatentSource.EPO:
             return await self._lookup_ep(reference)
         return await self._lookup_wo(
@@ -261,6 +272,13 @@ class PatentLookupService:
         include_original_file: bool,
     ) -> PatentLookupResponse:
         mode = self._settings.wipo_lookup_mode
+        logger.info(
+            "wo lookup dispatch normalized_number=%s mode=%s include_original_file=%s soap_configured=%s",
+            reference.normalized_number,
+            mode,
+            include_original_file,
+            self._settings.wipo_patentscope_configured,
+        )
         if mode == "soap":
             response = await self._wipo_client.lookup_patent(
                 reference, include_original_file=include_original_file
@@ -277,28 +295,57 @@ class PatentLookupService:
                 reference, include_original_file=False
             )
         except PatentServiceError as exc:
+            logger.warning(
+                "wo public lookup failed normalized_number=%s code=%s status=%s soap_configured=%s",
+                reference.normalized_number,
+                exc.code,
+                exc.status_code,
+                self._settings.wipo_patentscope_configured,
+            )
             if self._settings.wipo_patentscope_configured and exc.code in {
                 ErrorCode.SOURCE_RATE_LIMIT,
                 ErrorCode.SOURCE_UNAVAILABLE,
                 ErrorCode.UPSTREAM_RESPONSE_INVALID,
             }:
+                logger.info(
+                    "wo lookup falling back to soap normalized_number=%s",
+                    reference.normalized_number,
+                )
                 response = await self._wipo_client.lookup_patent(
                     reference, include_original_file=include_original_file
                 )
                 return self._finalize_wo_response(response)
             raise
 
+        logger.info(
+            "wo public lookup finished normalized_number=%s original_file_available=%s include_original_file=%s",
+            reference.normalized_number,
+            response.original_file.available,
+            include_original_file,
+        )
         if not include_original_file or response.original_file.available:
             return self._finalize_wo_response(response)
 
         if not self._settings.wipo_patentscope_configured:
+            logger.info(
+                "wo original file unavailable without soap fallback normalized_number=%s",
+                reference.normalized_number,
+            )
             return self._finalize_wo_response(response)
 
         try:
+            logger.info(
+                "wo original file retrying through soap normalized_number=%s",
+                reference.normalized_number,
+            )
             soap_response = await self._wipo_client.lookup_patent(
                 reference, include_original_file=True
             )
         except PatentServiceError:
+            logger.warning(
+                "wo soap original file lookup failed normalized_number=%s",
+                reference.normalized_number,
+            )
             return self._finalize_wo_response(response)
 
         if not soap_response.original_file.available:
