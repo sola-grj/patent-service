@@ -191,11 +191,11 @@ class StubWipoClient:
         )
 
 
-class StubWipoPublicClient(StubWipoClient):
+class StubWipoRestClient(StubWipoClient):
     pass
 
 
-class StubWipoPublicNoFileClient:
+class StubWipoRestNoFileClient:
     async def lookup_patent(self, reference: PatentReference, *, include_original_file: bool) -> PatentLookupResponse:
         del include_original_file
         return PatentLookupResponse(
@@ -210,15 +210,15 @@ class StubWipoPublicNoFileClient:
             ),
             original_file=PatentOriginalFile(),
             raw_source_refs={
-                "lookup_mode": "public_page",
-                "source": "public",
+                "lookup_mode": "rest",
+                "source": "rest",
                 "publication_number": "WO/2026/137030",
                 "application_filing_date": "20250814",
             },
         )
 
 
-class StubWipoPublicSuccessClient:
+class StubWipoRestSuccessClient:
     async def lookup_patent(self, reference: PatentReference, *, include_original_file: bool) -> PatentLookupResponse:
         return PatentLookupResponse(
             source=PatentSource.WIPO,
@@ -232,15 +232,15 @@ class StubWipoPublicSuccessClient:
             ),
             original_file=PatentOriginalFile(available=include_original_file),
             raw_source_refs={
-                "lookup_mode": "public_page",
-                "source": "public",
+                "lookup_mode": "rest",
+                "source": "rest",
                 "publication_number": "WO/2026/137030",
                 "application_filing_date": "20250814",
             },
         )
 
 
-class StubWipoPublicFailClient:
+class StubWipoRestFailClient:
     async def lookup_patent(self, reference: PatentReference, *, include_original_file: bool) -> PatentLookupResponse:
         del reference, include_original_file
         raise PatentServiceError(
@@ -257,14 +257,6 @@ class StubEpoOpsMissingTextClient(StubEpoOpsClient):
             code=ErrorCode.SOURCE_NO_RESULT,
             status_code=404,
             message="missing description",
-            source="epo",
-        )
-
-    async def fetch_claims_data(self, reference: PatentReference) -> str:
-        raise PatentServiceError(
-            code=ErrorCode.SOURCE_NO_RESULT,
-            status_code=404,
-            message="missing claims",
             source="epo",
         )
 
@@ -285,15 +277,30 @@ class StubEpoOpsMissingTextClient(StubEpoOpsClient):
                 "drawing_page_count": 3,
             },
         )
+    async def fetch_claims_data(self, reference: PatentReference) -> str:
+        raise PatentServiceError(
+            code=ErrorCode.SOURCE_NO_RESULT,
+            status_code=404,
+            message="missing claims",
+            source="epo",
+        )
 
+
+class StubEpoCpcClient(StubEpoOpsClient):
+    def parse_bibliographic_data(self, xml_text: str):
+        info, refs = super().parse_bibliographic_data(xml_text)
+        return info.model_copy(update={"cpc": ["A47K 3/022"]}), refs
 
 def test_lookup_service_routes_ep_and_wo():
     service = PatentLookupService(
-        settings=Settings(),
+        settings=Settings(
+            wipo_patentscope_username="demo-user",
+            wipo_patentscope_password="demo-pass",
+        ),
         epo_ops_client=StubEpoOpsClient(),
         epo_publication_server_client=StubPublicationServerClient(),
-        wipo_client=StubWipoClient(),
-        wipo_public_client=StubWipoPublicClient(),
+        wipo_rest_client=StubWipoRestClient(),
+        wipo_soap_client=StubWipoClient(),
     )
 
     ep_response = asyncio.run(
@@ -334,8 +341,8 @@ def test_lookup_service_returns_warnings_when_description_or_claims_are_missing(
         settings=Settings(),
         epo_ops_client=StubEpoOpsMissingTextClient(),
         epo_publication_server_client=StubPublicationServerClient(),
-        wipo_client=StubWipoClient(),
-        wipo_public_client=StubWipoPublicClient(),
+        wipo_rest_client=StubWipoRestClient(),
+        wipo_soap_client=StubWipoClient(),
     )
 
     ep_response = asyncio.run(
@@ -357,7 +364,7 @@ def test_lookup_service_returns_warnings_when_description_or_claims_are_missing(
     }
 
 
-def test_lookup_service_auto_falls_back_to_soap_for_original_file_only():
+def test_lookup_service_auto_uses_rest_client():
     service = PatentLookupService(
         settings=Settings(
             wipo_lookup_mode="auto",
@@ -367,8 +374,8 @@ def test_lookup_service_auto_falls_back_to_soap_for_original_file_only():
         ),
         epo_ops_client=StubEpoOpsClient(),
         epo_publication_server_client=StubPublicationServerClient(),
-        wipo_client=StubWipoClient(),
-        wipo_public_client=StubWipoPublicNoFileClient(),
+        wipo_rest_client=StubWipoRestSuccessClient(),
+        wipo_soap_client=StubWipoClient(),
     )
 
     response = asyncio.run(
@@ -391,11 +398,10 @@ def test_lookup_service_auto_falls_back_to_soap_for_original_file_only():
     assert response.claims_count is None
     assert response.claims_words is None
     assert response.drawings == PatentDrawingsInfo()
-    assert response.raw_source_refs["lookup_mode"] == "public_page"
-    assert response.raw_source_refs["soap_original_file"]["source"] == "stub"
+    assert response.raw_source_refs["lookup_mode"] == "rest"
 
 
-def test_lookup_service_auto_falls_back_to_soap_when_public_page_fails():
+def test_lookup_service_auto_falls_back_to_soap_when_rest_fails():
     service = PatentLookupService(
         settings=Settings(
             wipo_lookup_mode="auto",
@@ -405,8 +411,8 @@ def test_lookup_service_auto_falls_back_to_soap_when_public_page_fails():
         ),
         epo_ops_client=StubEpoOpsClient(),
         epo_publication_server_client=StubPublicationServerClient(),
-        wipo_client=StubWipoClient(),
-        wipo_public_client=StubWipoPublicFailClient(),
+        wipo_rest_client=StubWipoRestFailClient(),
+        wipo_soap_client=StubWipoClient(),
     )
 
     response = asyncio.run(
@@ -426,13 +432,17 @@ def test_lookup_service_auto_falls_back_to_soap_when_public_page_fails():
     assert response.abstract_words == 4
 
 
-def test_lookup_service_public_page_mode_uses_public_client():
+def test_lookup_service_rest_mode_uses_rest_client():
     service = PatentLookupService(
-        settings=Settings(wipo_lookup_mode="public_page"),
+        settings=Settings(
+            wipo_lookup_mode="rest",
+            wipo_patentscope_username="demo-user",
+            wipo_patentscope_password="demo-pass",
+        ),
         epo_ops_client=StubEpoOpsClient(),
         epo_publication_server_client=StubPublicationServerClient(),
-        wipo_client=StubWipoClient(),
-        wipo_public_client=StubWipoPublicSuccessClient(),
+        wipo_rest_client=StubWipoRestSuccessClient(),
+        wipo_soap_client=StubWipoClient(),
     )
 
     response = asyncio.run(
@@ -448,7 +458,35 @@ def test_lookup_service_public_page_mode_uses_public_client():
     assert response.application_no == "PCT/AT2025/060321"
     assert response.publication_date == "20260305"
     assert response.publication_no == "WO/2026/137030"
-    assert response.raw_source_refs["lookup_mode"] == "public_page"
+    assert response.raw_source_refs["lookup_mode"] == "rest"
+
+
+def test_lookup_service_enriches_only_missing_cpc_from_epo():
+    service = PatentLookupService(
+        settings=Settings(
+            wipo_lookup_mode="rest",
+            wipo_patentscope_username="demo-user",
+            wipo_patentscope_password="demo-pass",
+            epo_ops_consumer_key="epo-key",
+            epo_ops_consumer_secret="epo-secret",
+        ),
+        epo_ops_client=StubEpoCpcClient(),
+        epo_publication_server_client=StubPublicationServerClient(),
+        wipo_rest_client=StubWipoRestSuccessClient(),
+        wipo_soap_client=StubWipoClient(),
+    )
+
+    response = asyncio.run(
+        service.lookup_patent(
+            PatentLookupRequest(
+                patent_number="WO2026137030A1", include_original_file=False
+            )
+        )
+    )
+
+    assert response.basic_info.title == "WO public result"
+    assert response.basic_info.cpc == ["A47K 3/022"]
+    assert response.raw_source_refs["field_sources"]["cpc"] == "epo_ops"
 
 
 def test_lookup_service_soap_mode_uses_soap_client():
@@ -456,8 +494,8 @@ def test_lookup_service_soap_mode_uses_soap_client():
         settings=Settings(wipo_lookup_mode="soap"),
         epo_ops_client=StubEpoOpsClient(),
         epo_publication_server_client=StubPublicationServerClient(),
-        wipo_client=StubWipoClient(),
-        wipo_public_client=StubWipoPublicSuccessClient(),
+        wipo_rest_client=StubWipoRestSuccessClient(),
+        wipo_soap_client=StubWipoClient(),
     )
 
     response = asyncio.run(

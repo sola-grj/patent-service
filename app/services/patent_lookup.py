@@ -7,7 +7,6 @@ from typing import Any, Protocol
 
 from app.clients.epo_ops import EpoClaimsContent, EpoDescriptionContent, EpoOpsClient
 from app.clients.epo_publication_server import EpoPublicationServerClient
-from app.clients.wipo_patentscope import WipoPatentScopeClient
 from app.config import Settings
 from app.errors import ErrorCode, PatentServiceError
 from app.models.patents import (
@@ -41,14 +40,14 @@ class PatentLookupService:
         settings: Settings,
         epo_ops_client: EpoOpsClient,
         epo_publication_server_client: EpoPublicationServerClient,
-        wipo_client: WipoLookupClient,
-        wipo_public_client: WipoLookupClient,
+        wipo_rest_client: WipoLookupClient,
+        wipo_soap_client: WipoLookupClient,
     ) -> None:
         self._settings = settings
         self._epo_ops_client = epo_ops_client
         self._epo_publication_server_client = epo_publication_server_client
-        self._wipo_client = wipo_client
-        self._wipo_public_client = wipo_public_client
+        self._wipo_rest_client = wipo_rest_client
+        self._wipo_soap_client = wipo_soap_client
 
     async def lookup_patent(
         self, request: PatentLookupRequest
@@ -301,93 +300,106 @@ class PatentLookupService:
     ) -> PatentLookupResponse:
         mode = self._settings.wipo_lookup_mode
         logger.info(
-            "wo lookup dispatch normalized_number=%s mode=%s include_original_file=%s soap_configured=%s",
+            "wo lookup dispatch normalized_number=%s mode=%s include_original_file=%s rest_configured=%s soap_configured=%s",
             reference.normalized_number,
             mode,
             include_original_file,
-            self._settings.wipo_patentscope_configured,
+            self._settings.wipo_rest_configured,
+            self._settings.wipo_soap_configured,
         )
+        if mode == "rest":
+            response = await self._wipo_rest_client.lookup_patent(
+                reference, include_original_file=include_original_file
+            )
+            return await self._complete_wo_response(response, reference)
         if mode == "soap":
-            response = await self._wipo_client.lookup_patent(
+            response = await self._wipo_soap_client.lookup_patent(
                 reference, include_original_file=include_original_file
             )
-            return self._finalize_wo_response(response)
-        if mode == "public_page":
-            response = await self._wipo_public_client.lookup_patent(
-                reference, include_original_file=include_original_file
+            return await self._complete_wo_response(response, reference)
+
+        if not self._settings.wipo_rest_configured:
+            if self._settings.wipo_soap_configured:
+                response = await self._wipo_soap_client.lookup_patent(
+                    reference, include_original_file=include_original_file
+                )
+                return await self._complete_wo_response(response, reference)
+            raise PatentServiceError(
+                code=ErrorCode.SOURCE_ACCESS_NOT_CONFIGURED,
+                status_code=503,
+                message="WIPO PATENTSCOPE REST or SOAP credentials are not configured.",
+                source="wipo",
             )
-            return self._finalize_wo_response(response)
 
         try:
-            response = await self._wipo_public_client.lookup_patent(
-                reference, include_original_file=False
+            response = await self._wipo_rest_client.lookup_patent(
+                reference, include_original_file=include_original_file
             )
         except PatentServiceError as exc:
             logger.warning(
-                "wo public lookup failed normalized_number=%s code=%s status=%s soap_configured=%s",
+                "wo rest lookup failed normalized_number=%s code=%s status=%s soap_configured=%s",
                 reference.normalized_number,
                 exc.code,
                 exc.status_code,
-                self._settings.wipo_patentscope_configured,
+                self._settings.wipo_soap_configured,
             )
-            if self._settings.wipo_patentscope_configured and exc.code in {
+            if self._settings.wipo_soap_configured and exc.code in {
                 ErrorCode.SOURCE_RATE_LIMIT,
                 ErrorCode.SOURCE_UNAVAILABLE,
                 ErrorCode.UPSTREAM_RESPONSE_INVALID,
             }:
                 logger.info(
-                    "wo lookup falling back to soap normalized_number=%s",
+                    "wo REST lookup falling back to SOAP normalized_number=%s",
                     reference.normalized_number,
                 )
-                response = await self._wipo_client.lookup_patent(
+                response = await self._wipo_soap_client.lookup_patent(
                     reference, include_original_file=include_original_file
                 )
-                return self._finalize_wo_response(response)
+                return await self._complete_wo_response(response, reference)
             raise
+        return await self._complete_wo_response(response, reference)
 
-        logger.info(
-            "wo public lookup finished normalized_number=%s original_file_available=%s include_original_file=%s",
-            reference.normalized_number,
-            response.original_file.available,
-            include_original_file,
-        )
-        if not include_original_file or response.original_file.available:
-            return self._finalize_wo_response(response)
-
-        if not self._settings.wipo_patentscope_configured:
-            logger.info(
-                "wo original file unavailable without soap fallback normalized_number=%s",
-                reference.normalized_number,
-            )
-            return self._finalize_wo_response(response)
-
+    async def _complete_wo_response(
+        self, response: PatentLookupResponse, reference: PatentReference
+    ) -> PatentLookupResponse:
+        finalized = self._finalize_wo_response(response)
+        if finalized.basic_info.cpc:
+            return finalized
+        if not self._settings.epo_ops_configured:
+            return self._with_cpc_warning(finalized, "EPO OPS credentials are not configured.")
         try:
-            logger.info(
-                "wo original file retrying through soap normalized_number=%s",
-                reference.normalized_number,
-            )
-            soap_response = await self._wipo_client.lookup_patent(
-                reference, include_original_file=True
-            )
-        except PatentServiceError:
+            epo_xml = await self._epo_ops_client.fetch_bibliographic_data(reference)
+            epo_info, _ = self._epo_ops_client.parse_bibliographic_data(epo_xml)
+        except PatentServiceError as exc:
             logger.warning(
-                "wo soap original file lookup failed normalized_number=%s",
+                "wo CPC enrichment failed normalized_number=%s code=%s",
                 reference.normalized_number,
+                exc.code,
             )
-            return self._finalize_wo_response(response)
-
-        if not soap_response.original_file.available:
-            return self._finalize_wo_response(response)
-
-        merged_refs = dict(response.raw_source_refs)
-        merged_refs["soap_original_file"] = soap_response.raw_source_refs
-        merged_response = response.model_copy(
+            return self._with_cpc_warning(finalized, "EPO OPS did not provide CPC data.")
+        if not epo_info.cpc:
+            return self._with_cpc_warning(finalized, "EPO OPS did not provide CPC data.")
+        raw_refs = dict(finalized.raw_source_refs)
+        field_sources = dict(_as_dict(raw_refs.get("field_sources")))
+        field_sources["cpc"] = "epo_ops"
+        raw_refs["field_sources"] = field_sources
+        return finalized.model_copy(
             update={
-                "original_file": soap_response.original_file,
-                "raw_source_refs": merged_refs,
+                "basic_info": finalized.basic_info.model_copy(
+                    update={"cpc": list(dict.fromkeys(epo_info.cpc))}
+                ),
+                "raw_source_refs": raw_refs,
             }
         )
-        return self._finalize_wo_response(merged_response)
+
+    @staticmethod
+    def _with_cpc_warning(
+        response: PatentLookupResponse, message: str
+    ) -> PatentLookupResponse:
+        warning = PatentLookupWarning(
+            code="cpc_unavailable", field="cpc", message=message, source="wipo"
+        )
+        return response.model_copy(update={"warnings": [*response.warnings, warning]})
 
     def _finalize_wo_response(self, response: PatentLookupResponse) -> PatentLookupResponse:
         raw_refs = response.raw_source_refs

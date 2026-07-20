@@ -6,6 +6,7 @@ class ErrorCode(StrEnum):
     INVALID_PATENT_NUMBER_FORMAT = "invalid_patent_number_format"
     UNSUPPORTED_JURISDICTION = "unsupported_jurisdiction"
     SOURCE_AUTH_REQUIRED = "source_auth_required"
+    SOURCE_ACCESS_DENIED = "source_access_denied"
     SOURCE_ACCESS_NOT_CONFIGURED = "source_access_not_configured"
     SOURCE_NO_RESULT = "source_no_result"
     SOURCE_RATE_LIMIT = "source_rate_limit"

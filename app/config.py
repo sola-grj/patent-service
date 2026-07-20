@@ -14,15 +14,13 @@ class Settings(BaseSettings):
     epo_publication_server_url: str = (
         "https://data.epo.org/publication-server/rest/v1.2/patents"
     )
+    wipo_patentscope_rest_base_url: str = (
+        "https://patentscopews.wipo.int/patentscope-api/v1"
+    )
     wipo_patentscope_service_url: str | None = None
     wipo_patentscope_username: str | None = None
     wipo_patentscope_password: str | None = None
-    wipo_lookup_mode: Literal["auto", "public_page", "soap"] = "auto"
-    wipo_public_base_url: str = "https://patentscope.wipo.int/search/en"
-    wipo_selenium_chrome_binary: str | None = None
-    wipo_selenium_driver_path: str | None = None
-    wipo_selenium_headless: bool = False
-    wipo_selenium_timeout_seconds: float = 45.0
+    wipo_lookup_mode: Literal["auto", "rest", "soap"] = "auto"
     request_timeout_seconds: float = 20.0
 
     model_config = SettingsConfigDict(
@@ -36,12 +34,23 @@ class Settings(BaseSettings):
         return bool(self.epo_ops_consumer_key and self.epo_ops_consumer_secret)
 
     @property
-    def wipo_patentscope_configured(self) -> bool:
+    def wipo_rest_configured(self) -> bool:
+        return bool(
+            self.wipo_patentscope_username and self.wipo_patentscope_password
+        )
+
+    @property
+    def wipo_soap_configured(self) -> bool:
         return bool(
             self.wipo_patentscope_service_url
             and self.wipo_patentscope_username
             and self.wipo_patentscope_password
         )
+
+    @property
+    def wipo_patentscope_configured(self) -> bool:
+        """Backward-compatible alias for the SOAP client."""
+        return self.wipo_soap_configured
 
 
 @lru_cache(maxsize=1)

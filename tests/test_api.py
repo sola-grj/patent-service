@@ -128,6 +128,7 @@ def test_lookup_response_contract_for_wo():
     payload = response.json()
     assert payload["source"] == "wipo"
     assert payload["basic_info"]["title"] == "WO result"
+    assert payload["basic_info"]["representatives"] == []
     assert payload["application_date"] is None
     assert payload["application_no"] is None
     assert payload["publication_date"] is None

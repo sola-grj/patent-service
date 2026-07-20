@@ -28,6 +28,15 @@ class PatentLookupRequest(BaseModel):
     include_original_file: bool = False
 
 
+class PatentRepresentative(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = ""
+    organization: str = ""
+    address: str = ""
+    country: str = ""
+
+
 class PatentBasicInfo(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -37,6 +46,7 @@ class PatentBasicInfo(BaseModel):
     application_number: str = ""
     applicants: list[str] = Field(default_factory=list)
     inventors: list[str] = Field(default_factory=list)
+    representatives: list[PatentRepresentative] = Field(default_factory=list)
     ipc: list[str] = Field(default_factory=list)
     cpc: list[str] = Field(default_factory=list)
 
@@ -101,6 +111,7 @@ class PatentLookupEpResponse(BaseModel):
     cpc: list[str] = Field(default_factory=list)
     applicants: list[str] = Field(default_factory=list)
     inventors: list[str] = Field(default_factory=list)
+    representatives: list[PatentRepresentative] = Field(default_factory=list)
     language: str | None = None
     first_priority_date: str | None = None
     international_filing_date: str | None = None

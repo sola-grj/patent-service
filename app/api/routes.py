@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 from app.clients.epo_ops import EpoOpsClient
 from app.clients.epo_publication_server import EpoPublicationServerClient
 from app.clients.wipo_patentscope import WipoPatentScopeClient
-from app.clients.wipo_patentscope_selenium import WipoPatentScopeSeleniumClient
+from app.clients.wipo_patentscope_rest import WipoPatentScopeRestClient
 from app.config import Settings, get_settings
 from app.models.patents import PatentLookupApiResponse, PatentLookupRequest
 from app.services.patent_lookup import PatentLookupService
@@ -24,8 +24,8 @@ def get_lookup_service(
         epo_publication_server_client=EpoPublicationServerClient(
             settings.epo_publication_server_url
         ),
-        wipo_client=WipoPatentScopeClient(settings),
-        wipo_public_client=WipoPatentScopeSeleniumClient(settings),
+        wipo_rest_client=WipoPatentScopeRestClient(settings),
+        wipo_soap_client=WipoPatentScopeClient(settings),
     )
 
 
@@ -36,7 +36,8 @@ async def health(settings: Settings = Depends(get_settings)) -> dict[str, object
         "service": settings.app_name,
         "sources": {
             "epo_ops_configured": settings.epo_ops_configured,
-            "wipo_patentscope_configured": settings.wipo_patentscope_configured,
+            "wipo_rest_configured": settings.wipo_rest_configured,
+            "wipo_soap_configured": settings.wipo_soap_configured,
         },
     }
 
