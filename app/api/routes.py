@@ -1,7 +1,10 @@
 import logging
+import tempfile
 import time
+from pathlib import Path
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 
 from app.clients.epo_ops import EpoOpsClient
 from app.clients.epo_publication_server import EpoPublicationServerClient
@@ -64,3 +67,23 @@ async def lookup_patent(
         elapsed_ms,
     )
     return response
+
+
+@router.get("/patents/files/{filename}", response_class=FileResponse)
+async def download_patent_file(
+    filename: str, settings: Settings = Depends(get_settings)
+) -> FileResponse:
+    if Path(filename).name != filename or not filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=404, detail="Patent file not found.")
+    storage_dir = Path(
+        settings.wipo_storage_dir
+        or Path(tempfile.gettempdir()) / "patent-service" / "wipo"
+    ).resolve()
+    file_path = (storage_dir / filename).resolve()
+    if file_path.parent != storage_dir or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Patent file not found.")
+    return FileResponse(
+        path=file_path,
+        media_type="application/pdf",
+        filename=filename,
+    )

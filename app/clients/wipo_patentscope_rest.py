@@ -8,6 +8,7 @@ from dataclasses import asdict, dataclass
 from io import BytesIO
 from pathlib import Path, PurePosixPath
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -15,14 +16,17 @@ from app.config import Settings
 from app.errors import ErrorCode, PatentServiceError
 from app.models.patents import (
     PatentBasicInfo,
+    PatentDesignatedStates,
     PatentDrawingsInfo,
     PatentLookupResponse,
     PatentLookupWarning,
     PatentOriginalFile,
+    PatentPriorityData,
     PatentReference,
     PatentRepresentative,
 )
 from app.utils.text_metrics import count_words, extract_drawing_labels, normalize_text
+from app.utils.wipo_pdf import convert_wipo_zip_to_pdf
 
 logger = logging.getLogger("patent_service")
 
@@ -45,8 +49,9 @@ class WipoPatentScopeRestClient:
     ) -> None:
         self._settings = settings
         self._transport = transport
-        self._storage_dir = storage_dir or (
-            Path(tempfile.gettempdir()) / "patent-service" / "wipo"
+        self._storage_dir = storage_dir or Path(
+            settings.wipo_storage_dir
+            or Path(tempfile.gettempdir()) / "patent-service" / "wipo"
         )
 
     async def lookup_patent(
@@ -111,6 +116,7 @@ class WipoPatentScopeRestClient:
 
         basic_info = merge_basic_info(pamphlet_info, iasr_info)
         original_file = PatentOriginalFile()
+        original_file_refs: dict[str, Any] = {}
         if include_original_file:
             if selected_document is None:
                 raise PatentServiceError(
@@ -119,7 +125,9 @@ class WipoPatentScopeRestClient:
                     message="WIPO PATENTSCOPE did not expose an original publication file.",
                     source="wipo",
                 )
-            original_file = await self._download_original(reference, selected_document)
+            original_file, original_file_refs = await self._download_original(
+                reference, selected_document
+            )
 
         publication_reference = content_metrics.get("publication_reference") or iasr_refs.get(
             "publication_reference", {}
@@ -152,6 +160,7 @@ class WipoPatentScopeRestClient:
                 if selected_xml_page
                 else "wipo_iasr"
             },
+            **original_file_refs,
         }
 
         return PatentLookupResponse(
@@ -162,8 +171,21 @@ class WipoPatentScopeRestClient:
             application_date=application_reference.get("date") or None,
             application_no=basic_info.application_number or None,
             publication_date=basic_info.publication_date or None,
-            publication_no=publication_reference.get("full_number")
-            or reference.normalized_number,
+            # PATENTSCOPE displays WO publication numbers without the kind code.
+            # Keep the upstream kind (for example A1) in raw_source_refs, while
+            # exposing the canonical display form at the API boundary.
+            publication_no=reference.display_number,
+            agents=basic_info.representatives,
+            priority_data=iasr_refs.get("priority_data", []),
+            publication_language=content_metrics.get("publication_language")
+            or iasr_refs.get("publication_language")
+            or None,
+            filing_language=content_metrics.get("filing_language")
+            or iasr_refs.get("filing_language")
+            or None,
+            designated_states=iasr_refs.get("designated_states")
+            or content_metrics.get("designated_states")
+            or PatentDesignatedStates(),
             abstract_words=count_words(basic_info.abstract),
             description_words=content_metrics.get("description_words"),
             claims_count=content_metrics.get("claims_count"),
@@ -255,7 +277,7 @@ class WipoPatentScopeRestClient:
 
     async def _download_original(
         self, reference: PatentReference, document: WipoRestDocument
-    ) -> PatentOriginalFile:
+    ) -> tuple[PatentOriginalFile, dict[str, Any]]:
         path = f"/documents/{document.document_id}"
         headers = {
             "Accept": "application/octet-stream",
@@ -284,26 +306,31 @@ class WipoPatentScopeRestClient:
                             request=response.request,
                         )
                         raise map_wipo_rest_error(error_response, path=path)
-                    filename = _content_disposition_filename(
+                    archive_filename = _content_disposition_filename(
                         response.headers.get("Content-Disposition", "")
                     ) or f"{reference.normalized_number}_{document.document_type}.zip"
-                    filename = _safe_filename(filename)
-                    content_type = response.headers.get(
+                    archive_filename = _safe_filename(archive_filename)
+                    archive_content_type = response.headers.get(
                         "Content-Type", "application/zip"
                     ).split(";", 1)[0]
                     self._storage_dir.mkdir(parents=True, exist_ok=True)
-                    storage_path = self._storage_dir / filename
-                    partial_path = storage_path.with_suffix(storage_path.suffix + ".part")
+                    archive_path = self._storage_dir / archive_filename
+                    partial_path = archive_path.with_suffix(
+                        archive_path.suffix + ".part"
+                    )
                     try:
                         with partial_path.open("wb") as output:
                             async for chunk in response.aiter_bytes():
                                 output.write(chunk)
                         if (
-                            content_type == "application/zip"
-                            or storage_path.suffix.lower() == ".zip"
+                            archive_content_type in {
+                                "application/zip",
+                                "application/octet-stream",
+                            }
+                            or archive_path.suffix.lower() == ".zip"
                         ):
                             _validate_zip_members(partial_path.read_bytes())
-                        partial_path.replace(storage_path)
+                        partial_path.replace(archive_path)
                     except Exception:
                         partial_path.unlink(missing_ok=True)
                         raise
@@ -315,12 +342,42 @@ class WipoPatentScopeRestClient:
                 source="wipo",
                 details={"error": str(exc), "path": path},
             ) from exc
-        return PatentOriginalFile(
+        pdf_filename = f"{reference.normalized_number}.pdf"
+        pdf_path = self._storage_dir / pdf_filename
+        try:
+            ordered_pages = await asyncio.to_thread(
+                convert_wipo_zip_to_pdf, archive_path, pdf_path
+            )
+        except Exception as exc:
+            raise PatentServiceError(
+                code=ErrorCode.UPSTREAM_RESPONSE_INVALID,
+                status_code=502,
+                message="WIPO publication ZIP could not be converted to PDF.",
+                source="wipo",
+                details={"archive_path": str(archive_path), "error": str(exc)},
+            ) from exc
+        file_info = PatentOriginalFile(
             available=True,
-            content_type=content_type,
-            filename=filename,
-            storage_path=str(storage_path),
+            content_type="application/pdf",
+            filename=pdf_filename,
+            download_url=(
+                f"{self._settings.api_prefix}/patents/files/{quote(pdf_filename)}"
+            ),
+            storage_path=str(pdf_path),
         )
+        return file_info, {
+            "original_archive": {
+                "content_type": archive_content_type,
+                "filename": archive_filename,
+                "storage_path": str(archive_path),
+            },
+            "generated_pdf": {
+                "source": "wipo_tiff_pages",
+                "official_pdf": False,
+                "page_count": len(ordered_pages),
+                "ordered_pages": ordered_pages,
+            },
+        }
 
 
 def to_wipo_rest_number(reference: PatentReference) -> str:
@@ -355,6 +412,12 @@ def parse_iasr_payload(
     first_priority_date = ""
     if isinstance(priority, dict):
         first_priority_date = str(priority.get("date") or "")
+    publication_language = _json_reference_language(
+        biblio.get("publication-reference")
+    )
+    filing_language = _json_reference_language(biblio.get("application-reference"))
+    priority_data = _json_priority_data(biblio.get("wo-priority-info"))
+    designated_states = _json_designated_states(biblio.get("designation-of-states"))
     return (
         PatentBasicInfo(
             title=title,
@@ -371,6 +434,10 @@ def parse_iasr_payload(
             "title_language": title_language,
             "abstract_language": abstract_language,
             "first_priority_date": first_priority_date,
+            "priority_data": priority_data,
+            "publication_language": publication_language,
+            "filing_language": filing_language,
+            "designated_states": designated_states,
             "representatives_raw": representatives_raw,
         },
     )
@@ -485,6 +552,11 @@ def parse_published_application_xml(
         "title_language": title_language,
         "abstract_language": abstract_language,
         "representatives_raw": representatives_raw,
+        "publication_language": _xml_reference_language(
+            root, "publication-reference"
+        ),
+        "filing_language": _xml_reference_language(root, "application-reference"),
+        "designated_states": _xml_designated_states(root),
         "description_words": count_words(description_text)
         if description_text
         else None,
@@ -624,6 +696,75 @@ def _json_document_reference(value: Any) -> dict[str, str]:
     }
 
 
+def _json_reference_language(value: Any) -> str:
+    if not isinstance(value, dict):
+        return ""
+    document_id = value.get("document-id")
+    if isinstance(document_id, list):
+        document_id = document_id[0] if document_id else {}
+    if not isinstance(document_id, dict):
+        return ""
+    return str(document_id.get("lang") or "").upper()
+
+
+def _walk_json(value: Any):
+    if isinstance(value, dict):
+        yield value
+        for child in value.values():
+            yield from _walk_json(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _walk_json(child)
+
+
+def _json_priority_data(value: Any) -> list[PatentPriorityData]:
+    priorities: list[PatentPriorityData] = []
+    for item in _walk_json(value):
+        claim = item.get("priority-claim")
+        if not isinstance(claim, dict):
+            continue
+        priority = PatentPriorityData(
+            number=str(claim.get("doc-number") or ""),
+            date=str(claim.get("date") or ""),
+            country=str(claim.get("country") or ""),
+            kind=str(claim.get("kind") or ""),
+        )
+        if any(priority.model_dump().values()) and priority not in priorities:
+            priorities.append(priority)
+    return priorities
+
+
+def _json_designated_states(value: Any) -> PatentDesignatedStates:
+    regions: list[str] = []
+    countries: list[str] = []
+    protection_types: list[str] = []
+    for item in _walk_json(value):
+        region = item.get("region")
+        if isinstance(region, dict):
+            code = str(region.get("country") or "")
+            if code and code not in regions:
+                regions.append(code)
+        protection = item.get("kind-of-protection")
+        if protection:
+            code = str(protection)
+            if code not in protection_types:
+                protection_types.append(code)
+        country = item.get("country")
+        if isinstance(country, str) and country and country not in countries:
+            countries.append(country)
+        mixed_states = item.get("countryAndProtectionRequest")
+        if isinstance(mixed_states, list):
+            for state in mixed_states:
+                if isinstance(state, str) and state and state not in countries:
+                    countries.append(state)
+    countries = [country for country in countries if country not in regions]
+    return PatentDesignatedStates(
+        regions=regions,
+        countries=countries,
+        protection_types=protection_types,
+    )
+
+
 def _nested_value(value: Any, key: str) -> Any:
     if isinstance(value, dict):
         if key in value:
@@ -740,8 +881,14 @@ def _xml_document_reference(root: ET.Element, local_name: str) -> dict[str, str]
     country = _first_text(document_id, "country")
     number = _first_text(document_id, "doc-number")
     kind = _first_text(document_id, "kind")
+    application_type = (reference.get("appl-type") or "").strip().lower()
+    is_international_application = local_name == "application-reference" and (
+        application_type in {"international", "pct"}
+    )
     if number.upper().startswith("PCT/"):
         full_number = number
+    elif is_international_application and number:
+        full_number = f"PCT/{number}"
     elif country.upper() == "PCT" and number:
         full_number = f"PCT/{number}"
     elif country and number and not number.upper().startswith(country.upper()):
@@ -755,6 +902,44 @@ def _xml_document_reference(root: ET.Element, local_name: str) -> dict[str, str]
         "date": _first_text(document_id, "date"),
         "full_number": full_number,
     }
+
+
+def _xml_reference_language(root: ET.Element, local_name: str) -> str:
+    reference = _first_local(root.iter(), local_name)
+    document_id = (
+        _first_local(reference.iter(), "document-id")
+        if reference is not None
+        else None
+    )
+    if document_id is None:
+        return ""
+    return (document_id.get("lang") or "").upper()
+
+
+def _xml_designated_states(root: ET.Element) -> PatentDesignatedStates:
+    designation = _first_local(root.iter(), "designation-of-states")
+    if designation is None:
+        return PatentDesignatedStates()
+    regions: list[str] = []
+    countries: list[str] = []
+    protection_types: list[str] = []
+    for region_node in _all_local(designation.iter(), "region"):
+        code = _first_text(region_node, "country")
+        if code and code not in regions:
+            regions.append(code)
+    for country_node in _all_local(designation.iter(), "country"):
+        code = _joined_xml_text(country_node)
+        if code and code not in regions and code not in countries:
+            countries.append(code)
+    for protection_node in _all_local(designation.iter(), "kind-of-protection"):
+        value = _joined_xml_text(protection_node)
+        if value and value not in protection_types:
+            protection_types.append(value)
+    return PatentDesignatedStates(
+        regions=regions,
+        countries=countries,
+        protection_types=protection_types,
+    )
 
 
 def _select_xml_language_node(

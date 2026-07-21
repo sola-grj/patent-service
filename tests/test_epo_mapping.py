@@ -17,6 +17,8 @@ def test_parse_bibliographic_data():
     assert basic_info.application_number == "EP2026000123"
     assert basic_info.applicants == ["Example Applicant GmbH"]
     assert basic_info.inventors == ["Jane Inventor"]
+    assert basic_info.representatives[0].name == "Example Patent Attorneys GmbH"
+    assert basic_info.representatives[0].country == "DE"
     assert basic_info.ipc == ["A01B 1/00"]
     assert basic_info.cpc == ["B01D 53/00"]
     assert raw_refs["publication_reference"]["selected_number"] == "EP1234567A1"
@@ -24,6 +26,15 @@ def test_parse_bibliographic_data():
     assert raw_refs["application_reference"]["selected_date"] == "20260115"
     assert raw_refs["title_language"] == "EN"
     assert raw_refs["first_priority_date"] == "20231013"
+    assert raw_refs["priority_data"][0].model_dump() == {
+        "number": "PA202300999",
+        "date": "20231013",
+        "country": "DK",
+        "kind": "national",
+    }
+    assert raw_refs["publication_language"] == "EN"
+    assert raw_refs["filing_language"] == "DE"
+    assert raw_refs["designated_states"].countries == ["DE", "FR"]
 
 
 def test_parse_family_international_filing_date():
@@ -41,6 +52,36 @@ def test_parse_family_international_filing_date():
             "filing_date": "20241011",
         }
     ]
+    assert raw_refs["family_publications"] == [
+        {
+            "number": "WO2025076543",
+            "country": "WO",
+            "doc_number": "2025076543",
+            "kind": "A1",
+            "date": "20250417",
+        },
+        {
+            "number": "AT528631",
+            "country": "AT",
+            "doc_number": "528631",
+            "kind": "A1",
+            "date": "20260315",
+        },
+    ]
+
+
+def test_parse_register_bibliographic_data():
+    xml_text = (FIXTURES_DIR / "epo_register_biblio.xml").read_text(encoding="utf-8")
+
+    refs = EpoOpsClient.parse_register_bibliographic_data(xml_text)
+
+    assert refs["agents"][0].name == "Example EP Agent"
+    assert refs["agents"][0].country == "NL"
+    assert refs["priority_data"][0].number == "19981010536"
+    assert refs["publication_language"] == "EN"
+    assert refs["filing_language"] == "NL"
+    assert refs["designated_states"].regions == ["EP"]
+    assert refs["designated_states"].countries == ["AT", "DE"]
 
 
 def test_parse_description_data():

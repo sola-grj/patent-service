@@ -23,5 +23,19 @@
         </document-id>
       </application-reference>
     </ops:family-member>
+    <ops:family-member>
+      <publication-reference>
+        <document-id document-id-type="docdb">
+          <country>AT</country>
+          <doc-number>528631</doc-number>
+          <kind>A1</kind>
+          <date>20260315</date>
+        </document-id>
+        <document-id document-id-type="epodoc">
+          <doc-number>AT528631</doc-number>
+          <date>20260315</date>
+        </document-id>
+      </publication-reference>
+    </ops:family-member>
   </ops:patent-family>
 </ops:world-patent-data>

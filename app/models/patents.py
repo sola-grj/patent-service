@@ -37,6 +37,23 @@ class PatentRepresentative(BaseModel):
     country: str = ""
 
 
+class PatentPriorityData(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    number: str = ""
+    date: str = ""
+    country: str = ""
+    kind: str = ""
+
+
+class PatentDesignatedStates(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    regions: list[str] = Field(default_factory=list)
+    countries: list[str] = Field(default_factory=list)
+    protection_types: list[str] = Field(default_factory=list)
+
+
 class PatentBasicInfo(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -81,6 +98,14 @@ class PatentLookupResponse(BaseModel):
     application_no: str | None = None
     publication_date: str | None = None
     publication_no: str | None = None
+    agents: list[PatentRepresentative] = Field(default_factory=list)
+    priority_data: list[PatentPriorityData] = Field(default_factory=list)
+    publication_language: str | None = None
+    filing_language: str | None = None
+    designated_states: PatentDesignatedStates = Field(
+        default_factory=PatentDesignatedStates
+    )
+    related_patent_documents: list[str] = Field(default_factory=list)
     abstract_words: int | None = None
     description_words: int | None = None
     claims_count: int | None = None
@@ -112,6 +137,14 @@ class PatentLookupEpResponse(BaseModel):
     applicants: list[str] = Field(default_factory=list)
     inventors: list[str] = Field(default_factory=list)
     representatives: list[PatentRepresentative] = Field(default_factory=list)
+    agents: list[PatentRepresentative] = Field(default_factory=list)
+    priority_data: list[PatentPriorityData] = Field(default_factory=list)
+    publication_language: str | None = None
+    filing_language: str | None = None
+    designated_states: PatentDesignatedStates = Field(
+        default_factory=PatentDesignatedStates
+    )
+    related_patent_documents: list[str] = Field(default_factory=list)
     language: str | None = None
     first_priority_date: str | None = None
     international_filing_date: str | None = None

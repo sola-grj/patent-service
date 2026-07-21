@@ -11,6 +11,7 @@ from app.config import Settings
 from app.errors import ErrorCode, PatentServiceError
 from app.models.patents import (
     PatentDrawingsInfo,
+    PatentDesignatedStates,
     PatentLookupApiResponse,
     PatentLookupEpResponse,
     PatentLookupRequest,
@@ -72,7 +73,13 @@ class PatentLookupService:
             biblio_xml
         )
 
-        description_result, claims_result, images_result, family_result = await asyncio.gather(
+        (
+            description_result,
+            claims_result,
+            images_result,
+            family_result,
+            register_result,
+        ) = await asyncio.gather(
             self._fetch_optional_ep_xml(
                 reference, self._epo_ops_client.fetch_description_data
             ),
@@ -82,6 +89,9 @@ class PatentLookupService:
             ),
             self._fetch_optional_ep_xml(
                 reference, self._epo_ops_client.fetch_family_bibliographic_data
+            ),
+            self._fetch_optional_ep_xml(
+                reference, self._epo_ops_client.fetch_register_bibliographic_data
             ),
         )
 
@@ -99,6 +109,17 @@ class PatentLookupService:
         original_file_download_url: str | None = None
         total_pages: int | None = None
         international_filing_date: str | None = None
+        register_refs: dict[str, Any] = {}
+        family_refs: dict[str, Any] = {}
+
+        if register_result["xml_text"] is not None:
+            register_refs = self._epo_ops_client.parse_register_bibliographic_data(
+                register_result["xml_text"]
+            )
+            raw_source_refs["ops_register"] = {
+                "endpoint": self._epo_ops_client.build_register_biblio_path(reference),
+                **register_refs,
+            }
 
         if family_result["xml_text"] is not None:
             international_filing_date, family_refs = (
@@ -224,6 +245,15 @@ class PatentLookupService:
         publication_no = _resolve_publication_number(reference, publication_reference)
         first_priority_date = biblio_refs.get("first_priority_date")
         deadline_base_date = first_priority_date or international_filing_date
+        register_designated_states = register_refs.get("designated_states")
+        if register_designated_states and not any(
+            (
+                register_designated_states.regions,
+                register_designated_states.countries,
+                register_designated_states.protection_types,
+            )
+        ):
+            register_designated_states = None
 
         return PatentLookupEpResponse(
             source=PatentSource.EPO,
@@ -235,6 +265,23 @@ class PatentLookupService:
             cpc=basic_info.cpc,
             applicants=basic_info.applicants,
             inventors=basic_info.inventors,
+            representatives=register_refs.get("agents")
+            or basic_info.representatives,
+            agents=register_refs.get("agents") or basic_info.representatives,
+            priority_data=register_refs.get("priority_data")
+            or biblio_refs.get("priority_data", []),
+            publication_language=register_refs.get("publication_language")
+            or biblio_refs.get("publication_language")
+            or None,
+            filing_language=register_refs.get("filing_language")
+            or biblio_refs.get("filing_language")
+            or None,
+            designated_states=register_designated_states
+            or biblio_refs.get("designated_states")
+            or PatentDesignatedStates(),
+            related_patent_documents=_related_family_documents(
+                family_refs, reference
+            ),
             language=biblio_refs.get("title_language")
             or biblio_refs.get("abstract_language"),
             first_priority_date=first_priority_date,
@@ -363,10 +410,44 @@ class PatentLookupService:
         self, response: PatentLookupResponse, reference: PatentReference
     ) -> PatentLookupResponse:
         finalized = self._finalize_wo_response(response)
+        if not self._settings.epo_ops_configured:
+            if finalized.basic_info.cpc:
+                return finalized
+            return self._with_cpc_warning(
+                finalized, "EPO OPS credentials are not configured."
+            )
+
+        try:
+            family_xml = await self._epo_ops_client.fetch_family_bibliographic_data(
+                reference
+            )
+            _, family_refs = (
+                self._epo_ops_client.parse_family_international_filing_date(
+                    family_xml
+                )
+            )
+            raw_refs = dict(finalized.raw_source_refs)
+            raw_refs["ops_family"] = {
+                "endpoint": self._epo_ops_client.build_family_biblio_path(reference),
+                **family_refs,
+            }
+            finalized = finalized.model_copy(
+                update={
+                    "related_patent_documents": _related_family_documents(
+                        family_refs, reference
+                    ),
+                    "raw_source_refs": raw_refs,
+                }
+            )
+        except PatentServiceError as exc:
+            logger.warning(
+                "wo related patent enrichment failed normalized_number=%s code=%s",
+                reference.normalized_number,
+                exc.code,
+            )
+
         if finalized.basic_info.cpc:
             return finalized
-        if not self._settings.epo_ops_configured:
-            return self._with_cpc_warning(finalized, "EPO OPS credentials are not configured.")
         try:
             epo_xml = await self._epo_ops_client.fetch_bibliographic_data(reference)
             epo_info, _ = self._epo_ops_client.parse_bibliographic_data(epo_xml)
@@ -478,6 +559,30 @@ def _resolve_publication_number(
 
 def _as_dict(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
+
+
+def _related_family_documents(
+    family_refs: dict[str, Any], reference: PatentReference
+) -> list[str]:
+    current_numbers = {
+        _compact_patent_number(reference.normalized_number),
+        _compact_patent_number(reference.display_number),
+        _compact_patent_number(f"{reference.country_code}{reference.doc_number}"),
+    }
+    related: list[str] = []
+    for publication in family_refs.get("family_publications", []):
+        if not isinstance(publication, dict):
+            continue
+        number = str(publication.get("number") or "")
+        if not number or _compact_patent_number(number) in current_numbers:
+            continue
+        if number not in related:
+            related.append(number)
+    return related
+
+
+def _compact_patent_number(value: str) -> str:
+    return "".join(character for character in value.upper() if character.isalnum())
 
 
 def _first_non_empty_value(*values: Any) -> str | None:

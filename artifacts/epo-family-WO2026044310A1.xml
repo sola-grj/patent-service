@@ -1,0 +1,515 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type="text/xsl" href="../../../../../style/family-biblio.xsl"?>
+<ops:world-patent-data xmlns="http://www.epo.org/exchange" xmlns:ops="http://ops.epo.org" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <ops:patent-family legal="false" total-result-count="2">
+        <ops:publication-reference>
+            <document-id document-id-type="docdb">
+                <country>WO</country>
+                <doc-number>2026044310</doc-number>
+                <kind>A1</kind>
+            </document-id>
+        </ops:publication-reference>
+        <ops:family-member family-id="96878038">
+            <publication-reference>
+                <document-id document-id-type="docdb">
+                    <country>WO</country>
+                    <doc-number>2026044310</doc-number>
+                    <kind>A1</kind>
+                    <date>20260305</date>
+                </document-id>
+                <document-id document-id-type="epodoc">
+                    <doc-number>WO2026044310</doc-number>
+                    <date>20260305</date>
+                </document-id>
+            </publication-reference>
+            <application-reference doc-id="636004897" is-representative="YES">
+                <document-id document-id-type="docdb">
+                    <country>AT</country>
+                    <doc-number>2025060321</doc-number>
+                    <kind>W</kind>
+                    <date>20250814</date>
+                </document-id>
+            </application-reference>
+            <priority-claim sequence="1" kind="national">
+                <document-id document-id-type="docdb">
+                    <country>AT</country>
+                    <doc-number>601632024</doc-number>
+                    <kind>A</kind>
+                    <date>20240902</date>
+                </document-id>
+                <priority-active-indicator>YES</priority-active-indicator>
+            </priority-claim>
+            <exchange-document system="ops.epo.org" family-id="96878038" country="WO" doc-number="2026044310" kind="A1">
+                <bibliographic-data>
+                    <publication-reference>
+                        <document-id document-id-type="docdb">
+                            <country>WO</country>
+                            <doc-number>2026044310</doc-number>
+                            <kind>A1</kind>
+                            <date>20260305</date>
+                        </document-id>
+                        <document-id document-id-type="epodoc">
+                            <doc-number>WO2026044310</doc-number>
+                            <date>20260305</date>
+                        </document-id>
+                    </publication-reference>
+                    <classifications-ipcr>
+                        <classification-ipcr sequence="1">
+                            <text>A47J  36/    06            A I                    </text>
+                        </classification-ipcr>
+                    </classifications-ipcr>
+                    <patent-classifications>
+                        <patent-classification sequence="1">
+                            <classification-scheme office="EP" scheme="CPCI"/>
+                            <section>A</section>
+                            <class>47</class>
+                            <subclass>J</subclass>
+                            <main-group>36</main-group>
+                            <subgroup>06</subgroup>
+                            <classification-value>I</classification-value>
+                            <generating-office>EP</generating-office>
+                        </patent-classification>
+                        <patent-classification sequence="2">
+                            <classification-scheme office="EP" scheme="CPCI"/>
+                            <section>A</section>
+                            <class>47</class>
+                            <subclass>J</subclass>
+                            <main-group>36</main-group>
+                            <subgroup>12</subgroup>
+                            <classification-value>I</classification-value>
+                            <generating-office>AT</generating-office>
+                        </patent-classification>
+                    </patent-classifications>
+                    <application-reference doc-id="636004897">
+                        <document-id document-id-type="docdb">
+                            <country>AT</country>
+                            <doc-number>2025060321</doc-number>
+                            <kind>W</kind>
+                        </document-id>
+                        <document-id document-id-type="epodoc">
+                            <doc-number>WO2025AT60321</doc-number>
+                            <date>20250814</date>
+                        </document-id>
+                        <document-id document-id-type="original">
+                            <doc-number>AT2025/060321</doc-number>
+                        </document-id>
+                    </application-reference>
+                    <priority-claims>
+                        <priority-claim sequence="1" kind="national">
+                            <document-id document-id-type="epodoc">
+                                <doc-number>AT20240060163</doc-number>
+                                <date>20240902</date>
+                            </document-id>
+                            <document-id document-id-type="original">
+                                <doc-number>A 60163/2024</doc-number>
+                            </document-id>
+                        </priority-claim>
+                    </priority-claims>
+                    <parties>
+                        <applicants>
+                            <applicant sequence="1" data-format="epodoc">
+                                <applicant-name>
+                                    <name>OSKARI GMBH [AT]</name>
+                                </applicant-name>
+                            </applicant>
+                            <applicant sequence="1" data-format="original">
+                                <applicant-name>
+                                    <name>OSKARI GMBH</name>
+                                </applicant-name>
+                            </applicant>
+                        </applicants>
+                        <inventors>
+                            <inventor sequence="1" data-format="epodoc">
+                                <inventor-name>
+                                    <name>MAROLT OSWALD [AT]</name>
+                                </inventor-name>
+                            </inventor>
+                            <inventor sequence="1" data-format="original">
+                                <inventor-name>
+                                    <name>MAROLT, Oswald</name>
+                                </inventor-name>
+                            </inventor>
+                        </inventors>
+                    </parties>
+                    <invention-title lang="de">DECKEL FÜR EINEN BEHÄLTER</invention-title>
+                    <invention-title lang="fr">COUVERCLE POUR UN RÉCIPIENT</invention-title>
+                    <invention-title lang="en">COVER FOR A CONTAINER</invention-title>
+                    <references-cited>
+                        <citation cited-phase="undefined" cited-by="applicant" sequence="1">
+                            <patcit dnum-type="publication number" num="1">
+                                <document-id document-id-type="epodoc">
+                                    <doc-number>CN201234901</doc-number>
+                                </document-id>
+                                <document-id document-id-type="docdb">
+                                    <country>CN</country>
+                                    <doc-number>201234901</doc-number>
+                                    <kind>Y</kind>
+                                </document-id>
+                            </patcit>
+                        </citation>
+                        <citation cited-phase="undefined" cited-by="applicant" sequence="2">
+                            <patcit dnum-type="publication number" num="2">
+                                <document-id document-id-type="epodoc">
+                                    <doc-number>WO2006064306</doc-number>
+                                </document-id>
+                                <document-id document-id-type="docdb">
+                                    <country>WO</country>
+                                    <doc-number>2006064306</doc-number>
+                                    <kind>A1</kind>
+                                </document-id>
+                            </patcit>
+                        </citation>
+                        <citation cited-phase="international-search-report" cited-by="examiner" sequence="1" office="US">
+                            <patcit dnum-type="publication number" num="1">
+                                <document-id document-id-type="epodoc">
+                                    <doc-number>US2016255994</doc-number>
+                                    <name>WALKER KELLY E [US]</name>
+                                    <date>20160908</date>
+                                </document-id>
+                                <document-id document-id-type="docdb">
+                                    <country>US</country>
+                                    <doc-number>2016255994</doc-number>
+                                    <kind>A1</kind>
+                                    <name>WALKER KELLY E [US]</name>
+                                    <date>20160908</date>
+                                </document-id>
+                            </patcit>
+                            <category>X</category>
+                            <rel-claims>1,3-5,7,9-10</rel-claims>
+                            <category>A</category>
+                            <rel-claims>2,6,8</rel-claims>
+                            <rel-passage>
+                                <passage>* figures 1-6 *</passage>
+                                <passage>* paragraphs  [0026] , [0 34] , [0 38] , [0 39] , [0 41] *</passage>
+                            </rel-passage>
+                        </citation>
+                        <citation cited-phase="international-search-report" cited-by="examiner" sequence="2" office="US">
+                            <patcit dnum-type="publication number" num="2">
+                                <document-id document-id-type="epodoc">
+                                    <doc-number>RU2672831</doc-number>
+                                    <name>BREVILL PTI LTD [AU]</name>
+                                    <date>20181119</date>
+                                </document-id>
+                                <document-id document-id-type="docdb">
+                                    <country>RU</country>
+                                    <doc-number>2672831</doc-number>
+                                    <kind>C2</kind>
+                                    <name>BREVILL PTI LTD [AU]</name>
+                                    <date>20181119</date>
+                                </document-id>
+                            </patcit>
+                            <category>X</category>
+                            <rel-claims>1,3,8</rel-claims>
+                            <category>I</category>
+                            <rel-claims>5-6</rel-claims>
+                            <category>A</category>
+                            <rel-claims>2,4,7,9-10</rel-claims>
+                            <rel-passage>
+                                <passage>* figures 1-4, claim 1 *</passage>
+                            </rel-passage>
+                        </citation>
+                        <citation cited-phase="international-search-report" cited-by="examiner" sequence="3" office="US">
+                            <patcit dnum-type="publication number" num="3">
+                                <document-id document-id-type="epodoc">
+                                    <doc-number>WO2006064306</doc-number>
+                                    <name>MELLONI PIERO [IT]</name>
+                                    <date>20060622</date>
+                                </document-id>
+                                <document-id document-id-type="docdb">
+                                    <country>WO</country>
+                                    <doc-number>2006064306</doc-number>
+                                    <kind>A1</kind>
+                                    <name>MELLONI PIERO [IT]</name>
+                                    <date>20060622</date>
+                                </document-id>
+                            </patcit>
+                            <category>X</category>
+                            <rel-claims>1,8-9</rel-claims>
+                            <category>A</category>
+                            <rel-claims>3-4,7</rel-claims>
+                            <category>Y</category>
+                            <rel-claims>2</rel-claims>
+                            <category>I</category>
+                            <rel-claims>5-6</rel-claims>
+                            <rel-passage>
+                                <passage>* figures 1-6, claims 1, 5 *</passage>
+                                <passage>* page  1, line  15  - line  18 *</passage>
+                                <passage>* page  4, line  14  - line  19 *</passage>
+                            </rel-passage>
+                        </citation>
+                        <citation cited-phase="international-search-report" cited-by="examiner" sequence="4" office="US">
+                            <patcit dnum-type="publication number" num="4">
+                                <document-id document-id-type="epodoc">
+                                    <doc-number>DE202022102131</doc-number>
+                                    <name>SONNTAG PETER [AT]</name>
+                                    <date>20220427</date>
+                                </document-id>
+                                <document-id document-id-type="docdb">
+                                    <country>DE</country>
+                                    <doc-number>202022102131</doc-number>
+                                    <kind>U1</kind>
+                                    <name>SONNTAG PETER [AT]</name>
+                                    <date>20220427</date>
+                                </document-id>
+                            </patcit>
+                            <category>Y</category>
+                            <rel-claims>2</rel-claims>
+                            <rel-passage>
+                                <passage>* figure 8 *</passage>
+                            </rel-passage>
+                        </citation>
+                    </references-cited>
+                </bibliographic-data>
+                <abstract lang="en">
+                    <p>The present invention relates to a cover (1) for a container, in particular for kitchenware, said cover having a main body (2) on the underside (10) of which a collar (8) surrounding the opening (5) is formed, which main body has at least one centring ring (4) on an underside (10), and having a closable opening (5) in the main body (2). Safe handling can be achieved in that the collar (8) tapers conically inwards and consists of a flexible material, and in that a handle (3) is provided for gripping the cover (1).</p>
+                </abstract>
+                <abstract lang="de">
+                    <p>Die vorliegende Erfindung betrifft einen Deckel (1) für einen Behälter, insbesondere für ein Küchengeschirr, mit einem Hauptkörper (2), an dessen Unterseite (10) ein die Öffnung (5) umgebender Kragen (8) ausgebildet ist und der an einer Unterseite (10) mindestens einen Zentrierring (4) aufweist, und mit einer verschließbaren Öffnung (5) im Hauptkörper (2). Eine ungefährliche Handhabung kann dadurch erreicht werden, dass der Kragen (8) sich konisch nach innen verjüngend ausgebildet ist und aus einem flexiblen Material besteht und dass ein Griff (3) zum Ergreifen des Deckels (1) vorgesehen ist.</p>
+                </abstract>
+                <abstract lang="fr">
+                    <p>La présente invention concerne un couvercle (1) conçu pour un récipient, en particulier pour un ustensile de cuisine, comprenant un corps principal (2) sur la face inférieure (10) duquel est formé un col (8) entourant l'ouverture (5) et qui comporte au moins une bague de centrage (4) sur une face inférieure (10), ainsi qu'une ouverture (5) pouvant être fermée dans le corps principal (2). L'objectif de cette invention est de pouvoir réaliser une manipulation sans danger. À cet effet, le col (8) va en se rétrécissant de manière conique vers l'intérieur et est constitué d'un matériau flexible, et une poignée (3) est prévue pour saisir le couvercle (1).</p>
+                </abstract>
+            </exchange-document>
+        </ops:family-member>
+        <ops:family-member family-id="96878038">
+            <publication-reference>
+                <document-id document-id-type="docdb">
+                    <country>AT</country>
+                    <doc-number>528631</doc-number>
+                    <kind>A1</kind>
+                    <date>20260315</date>
+                </document-id>
+                <document-id document-id-type="epodoc">
+                    <doc-number>AT528631</doc-number>
+                    <date>20260315</date>
+                </document-id>
+            </publication-reference>
+            <application-reference doc-id="639226985">
+                <document-id document-id-type="docdb">
+                    <country>AT</country>
+                    <doc-number>601632024</doc-number>
+                    <kind>A</kind>
+                    <date>20240902</date>
+                </document-id>
+            </application-reference>
+            <priority-claim sequence="1" kind="national">
+                <document-id document-id-type="docdb">
+                    <country>AT</country>
+                    <doc-number>601632024</doc-number>
+                    <kind>A</kind>
+                    <date>20240902</date>
+                </document-id>
+                <priority-active-indicator>YES</priority-active-indicator>
+            </priority-claim>
+            <exchange-document system="ops.epo.org" family-id="96878038" country="AT" doc-number="528631" kind="A1">
+                <bibliographic-data>
+                    <publication-reference>
+                        <document-id document-id-type="docdb">
+                            <country>AT</country>
+                            <doc-number>528631</doc-number>
+                            <kind>A1</kind>
+                            <date>20260315</date>
+                        </document-id>
+                        <document-id document-id-type="epodoc">
+                            <doc-number>AT528631</doc-number>
+                            <date>20260315</date>
+                        </document-id>
+                    </publication-reference>
+                    <classifications-ipcr>
+                        <classification-ipcr sequence="1">
+                            <text>A47J  36/    12            A I                    </text>
+                        </classification-ipcr>
+                    </classifications-ipcr>
+                    <patent-classifications>
+                        <patent-classification sequence="1">
+                            <classification-scheme office="EP" scheme="CPCI"/>
+                            <section>A</section>
+                            <class>47</class>
+                            <subclass>J</subclass>
+                            <main-group>36</main-group>
+                            <subgroup>06</subgroup>
+                            <classification-value>I</classification-value>
+                            <generating-office>EP</generating-office>
+                        </patent-classification>
+                        <patent-classification sequence="2">
+                            <classification-scheme office="EP" scheme="CPCI"/>
+                            <section>A</section>
+                            <class>47</class>
+                            <subclass>J</subclass>
+                            <main-group>36</main-group>
+                            <subgroup>12</subgroup>
+                            <classification-value>I</classification-value>
+                            <generating-office>AT</generating-office>
+                        </patent-classification>
+                    </patent-classifications>
+                    <application-reference doc-id="639226985">
+                        <document-id document-id-type="docdb">
+                            <country>AT</country>
+                            <doc-number>601632024</doc-number>
+                            <kind>A</kind>
+                        </document-id>
+                        <document-id document-id-type="epodoc">
+                            <doc-number>AT20240060163</doc-number>
+                            <date>20240902</date>
+                        </document-id>
+                        <document-id document-id-type="original">
+                            <doc-number>A</doc-number>
+                        </document-id>
+                    </application-reference>
+                    <priority-claims>
+                        <priority-claim sequence="1" kind="national">
+                            <document-id document-id-type="epodoc">
+                                <doc-number>AT20240060163</doc-number>
+                                <date>20240902</date>
+                            </document-id>
+                        </priority-claim>
+                    </priority-claims>
+                    <parties>
+                        <applicants>
+                            <applicant sequence="1" data-format="epodoc">
+                                <applicant-name>
+                                    <name>OSKARI GMBH [AT]</name>
+                                </applicant-name>
+                            </applicant>
+                            <applicant sequence="1" data-format="original">
+                                <applicant-name>
+                                    <name>oskari GmbH</name>
+                                </applicant-name>
+                            </applicant>
+                        </applicants>
+                        <inventors>
+                            <inventor sequence="1" data-format="epodoc">
+                                <inventor-name>
+                                    <name>OSWALD MAROLT [AT]</name>
+                                </inventor-name>
+                            </inventor>
+                            <inventor sequence="1" data-format="original">
+                                <inventor-name>
+                                    <name>Oswald Marolt</name>
+                                </inventor-name>
+                            </inventor>
+                        </inventors>
+                    </parties>
+                    <invention-title lang="de">Deckel für einen Behälter</invention-title>
+                    <references-cited>
+                        <citation cited-phase="undefined" cited-by="applicant" sequence="1">
+                            <patcit dnum-type="publication number" num="1">
+                                <document-id document-id-type="epodoc">
+                                    <doc-number>WO2006064306</doc-number>
+                                    <date>20060622</date>
+                                </document-id>
+                                <document-id document-id-type="docdb">
+                                    <country>WO</country>
+                                    <doc-number>2006064306</doc-number>
+                                    <kind>A1</kind>
+                                    <date>20060622</date>
+                                </document-id>
+                            </patcit>
+                            <category>X</category>
+                            <rel-claims>1-6,8,9</rel-claims>
+                            <rel-passage>
+                                <passage>* gesamtes Dokument, insbes. Seite 1, Zeile 17, Seite 2, Zeile 25, Seite 3, Zeile 8, Seite 4, Zeilen 19-25, Fig. 1-6 *</passage>
+                            </rel-passage>
+                        </citation>
+                        <citation cited-phase="undefined" cited-by="applicant" sequence="2">
+                            <patcit dnum-type="publication number" num="2">
+                                <document-id document-id-type="epodoc">
+                                    <doc-number>CN216797429</doc-number>
+                                    <date>20220624</date>
+                                </document-id>
+                                <document-id document-id-type="docdb">
+                                    <country>CN</country>
+                                    <doc-number>216797429</doc-number>
+                                    <kind>U</kind>
+                                    <date>20220624</date>
+                                </document-id>
+                            </patcit>
+                            <category>X</category>
+                            <rel-claims>1,3-6,8,9</rel-claims>
+                            <rel-passage>
+                                <passage>* (übersetzt) [online] [abgerufen am 19.09.2025]. Abgerufen von KIME gesamtes Dokument, insbes. Abs. [0014], [0040]-[0044], Fig. 1-6 *</passage>
+                            </rel-passage>
+                        </citation>
+                        <citation cited-phase="undefined" cited-by="applicant" sequence="3">
+                            <patcit dnum-type="publication number" num="3">
+                                <document-id document-id-type="epodoc">
+                                    <doc-number>KR100699705</doc-number>
+                                    <date>20070326</date>
+                                </document-id>
+                                <document-id document-id-type="docdb">
+                                    <country>KR</country>
+                                    <doc-number>100699705</doc-number>
+                                    <kind>B1</kind>
+                                    <date>20070326</date>
+                                </document-id>
+                            </patcit>
+                            <category>A</category>
+                            <rel-claims>1-3</rel-claims>
+                            <rel-passage>
+                                <passage>* (übersetzt) [online] [abgerufen am 18.09.2025]. Abgerufen von KIME Fig. 4, 6, Figurenbeschreibung *</passage>
+                            </rel-passage>
+                        </citation>
+                        <citation cited-phase="undefined" cited-by="applicant" sequence="4">
+                            <patcit dnum-type="publication number" num="4">
+                                <document-id document-id-type="epodoc">
+                                    <doc-number>CN219920866</doc-number>
+                                    <date>20231031</date>
+                                </document-id>
+                                <document-id document-id-type="docdb">
+                                    <country>CN</country>
+                                    <doc-number>219920866</doc-number>
+                                    <kind>U</kind>
+                                    <date>20231031</date>
+                                </document-id>
+                            </patcit>
+                            <category>A</category>
+                            <rel-claims>1-3</rel-claims>
+                            <rel-passage>
+                                <passage>* (übersetzt) [online] [abgerufen am 18.09.2025]. Abgerufen von KIME Figl. 1, 2, Figurenbeschreibung *</passage>
+                            </rel-passage>
+                        </citation>
+                        <citation cited-phase="undefined" cited-by="applicant" sequence="5">
+                            <patcit dnum-type="publication number" num="5">
+                                <document-id document-id-type="epodoc">
+                                    <doc-number>CN103239141</doc-number>
+                                    <date>20130814</date>
+                                </document-id>
+                                <document-id document-id-type="docdb">
+                                    <country>CN</country>
+                                    <doc-number>103239141</doc-number>
+                                    <kind>A</kind>
+                                    <date>20130814</date>
+                                </document-id>
+                            </patcit>
+                            <category>A</category>
+                            <rel-claims>1-3</rel-claims>
+                            <rel-passage>
+                                <passage>* (übersetzt) [online] [abgerufen am 18.09.2025]. Abgerufen von KIME Fig. 1, 2 *</passage>
+                            </rel-passage>
+                        </citation>
+                        <citation cited-phase="undefined" cited-by="applicant" sequence="6">
+                            <patcit dnum-type="publication number" num="6">
+                                <document-id document-id-type="epodoc">
+                                    <doc-number>CN220360317</doc-number>
+                                    <date>20240119</date>
+                                </document-id>
+                                <document-id document-id-type="docdb">
+                                    <country>CN</country>
+                                    <doc-number>220360317</doc-number>
+                                    <kind>U</kind>
+                                    <date>20240119</date>
+                                </document-id>
+                            </patcit>
+                            <category>A</category>
+                            <rel-passage>
+                                <passage>* (übersetzt) [online] [abgerufen am 19.09.2025]. Abgerufen von KIME Zusammenfassung, Fig. 1-3 *</passage>
+                            </rel-passage>
+                        </citation>
+                    </references-cited>
+                </bibliographic-data>
+                <abstract lang="de">
+                    <p>Die vorliegende Erfindung betrifft einen Deckel (1) für ein Küchengeschirr, mit einem Hauptkörper (2), der an einer Unterseite (9) mindestens einen Zentrierring (4) aufweist, einem Griff (3) zum Ergreifen des Deckels (1) und mit einer verschließbaren Öffnung (5) im Hauptkörper (2). Eine ungefährliche Handhabung kann dadurch erreicht werden, dass an der Unterseite (9) des Hauptkörpers (2) ein die Öffnung (5) umgebender Kragen (8) ausgebildet ist.</p>
+                </abstract>
+            </exchange-document>
+        </ops:family-member>
+    </ops:patent-family>
+</ops:world-patent-data>

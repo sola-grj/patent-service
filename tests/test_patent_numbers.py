@@ -9,12 +9,15 @@ from app.config import Settings
 from app.errors import PatentServiceError
 from app.models.patents import (
     PatentBasicInfo,
+    PatentDesignatedStates,
     PatentDrawingsInfo,
     PatentLookupEpResponse,
     PatentLookupRequest,
     PatentLookupResponse,
     PatentOriginalFile,
+    PatentPriorityData,
     PatentReference,
+    PatentRepresentative,
     PatentSource,
 )
 from app.services.patent_lookup import PatentLookupService
@@ -71,6 +74,9 @@ class StubEpoOpsClient:
         return "<unused />"
 
     async def fetch_family_bibliographic_data(self, reference: PatentReference) -> str:
+        return "<unused />"
+
+    async def fetch_register_bibliographic_data(self, reference: PatentReference) -> str:
         return "<unused />"
 
     def parse_bibliographic_data(self, xml_text: str):
@@ -141,7 +147,30 @@ class StubEpoOpsClient:
         )
 
     def parse_family_international_filing_date(self, xml_text: str):
-        return "20241011", {"wo_members": [{"filing_date": "20241011"}]}
+        return "20241011", {
+            "wo_members": [{"filing_date": "20241011"}],
+            "family_publications": [
+                {"number": "EP1234567"},
+                {"number": "WO2026137030"},
+                {"number": "AT528631"},
+            ],
+        }
+
+    def parse_register_bibliographic_data(self, xml_text: str):
+        return {
+            "agents": [PatentRepresentative(name="Example EP Agent", country="DE")],
+            "priority_data": [
+                PatentPriorityData(
+                    number="PA202300999",
+                    date="20231013",
+                    country="DK",
+                    kind="national",
+                )
+            ],
+            "publication_language": "EN",
+            "filing_language": "DE",
+            "designated_states": PatentDesignatedStates(countries=["DE", "FR"]),
+        }
 
     def build_biblio_path(self, reference: PatentReference) -> str:
         return "/published-data/publication/epodoc/example/biblio"
@@ -157,6 +186,9 @@ class StubEpoOpsClient:
 
     def build_family_biblio_path(self, reference: PatentReference) -> str:
         return "/family/publication/docdb/EP.1234567.A1/biblio"
+
+    def build_register_biblio_path(self, reference: PatentReference) -> str:
+        return "/register/publication/epodoc/EP1234567/biblio"
 
 
 class StubPublicationServerClient:
@@ -323,6 +355,12 @@ def test_lookup_service_routes_ep_and_wo():
     assert ep_response.publication_no == "EP1234567A1"
     assert ep_response.language == "EN"
     assert ep_response.first_priority_date == "20231013"
+    assert ep_response.agents[0].name == "Example EP Agent"
+    assert ep_response.priority_data[0].number == "PA202300999"
+    assert ep_response.publication_language == "EN"
+    assert ep_response.filing_language == "DE"
+    assert ep_response.designated_states.countries == ["DE", "FR"]
+    assert ep_response.related_patent_documents == ["WO2026137030", "AT528631"]
     assert ep_response.international_filing_date == "20241011"
     assert ep_response.filing_deadline_30_months == "20260413"
     assert ep_response.filing_deadline_31_months == "20260513"
@@ -334,6 +372,7 @@ def test_lookup_service_routes_ep_and_wo():
         drawing_labels=["FIG. 1 is a view."],
     )
     assert wo_response.source is PatentSource.WIPO
+    assert wo_response.related_patent_documents == ["EP1234567", "AT528631"]
 
 
 def test_lookup_service_returns_warnings_when_description_or_claims_are_missing():

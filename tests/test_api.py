@@ -1,6 +1,9 @@
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 from app.api.routes import get_lookup_service
+from app.config import Settings, get_settings
 from app.errors import ErrorCode, PatentServiceError
 from app.main import app
 from app.models.patents import (
@@ -159,6 +162,36 @@ def test_lookup_error_contract():
     payload = response.json()
     assert payload["error"]["code"] == "source_access_not_configured"
     assert payload["error"]["source"] == "wipo"
+
+
+def test_download_generated_wipo_pdf(tmp_path: Path):
+    pdf_path = tmp_path / "WO2026044310A1.pdf"
+    pdf_bytes = b"%PDF-1.4\n%%EOF\n"
+    pdf_path.write_bytes(pdf_bytes)
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        wipo_storage_dir=str(tmp_path)
+    )
+    client = TestClient(app)
+
+    response = client.get("/api/patents/files/WO2026044310A1.pdf")
+
+    app.dependency_overrides.clear()
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert "WO2026044310A1.pdf" in response.headers["content-disposition"]
+    assert response.content == pdf_bytes
+
+
+def test_download_wipo_file_rejects_non_pdf(tmp_path: Path):
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        wipo_storage_dir=str(tmp_path)
+    )
+    client = TestClient(app)
+
+    response = client.get("/api/patents/files/WO2026044310A1.zip")
+
+    app.dependency_overrides.clear()
+    assert response.status_code == 404
 
 
 def test_health_endpoint_reports_source_configuration():

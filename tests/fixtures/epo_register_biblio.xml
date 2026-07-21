@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ops:world-patent-data xmlns:ops="http://ops.epo.org" xmlns:reg="http://www.epo.org/register">
+  <ops:register-search>
+    <reg:register-documents>
+      <reg:register-document lang="en">
+        <reg:bibliographic-data lang="en">
+          <reg:publication-reference>
+            <reg:document-id lang="en"><reg:country>EP</reg:country><reg:doc-number>1000000</reg:doc-number><reg:kind>A1</reg:kind></reg:document-id>
+          </reg:publication-reference>
+          <reg:language-of-filing>nl</reg:language-of-filing>
+          <reg:priority-claims>
+            <reg:priority-claim sequence="1" kind="national"><reg:country>NL</reg:country><reg:doc-number>19981010536</reg:doc-number><reg:date>19981112</reg:date></reg:priority-claim>
+          </reg:priority-claims>
+          <reg:parties>
+            <reg:agents><reg:agent><reg:agent-name><reg:name>Example EP Agent</reg:name></reg:agent-name><reg:address><reg:city>The Hague</reg:city><reg:country>NL</reg:country></reg:address></reg:agent></reg:agents>
+          </reg:parties>
+          <reg:designation-of-states><reg:designation-pct><reg:regional><reg:region><reg:country>EP</reg:country></reg:region><reg:country>AT</reg:country><reg:country>DE</reg:country></reg:regional></reg:designation-pct></reg:designation-of-states>
+        </reg:bibliographic-data>
+      </reg:register-document>
+    </reg:register-documents>
+  </ops:register-search>
+</ops:world-patent-data>

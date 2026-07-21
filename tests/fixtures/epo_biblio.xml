@@ -3,6 +3,8 @@
   <exchange-documents>
     <exchange-document country="EP" doc-number="1234567" kind="A1">
       <bibliographic-data>
+        <language-of-filing>de</language-of-filing>
+        <language-of-publication>en</language-of-publication>
         <publication-reference>
           <document-id document-id-type="docdb">
             <country>EP</country>
@@ -51,7 +53,18 @@
               </inventor-name>
             </inventor>
           </inventors>
+          <agents>
+            <agent>
+              <agent-name><name>Example Patent Attorneys GmbH</name></agent-name>
+              <address><address-1>Patentstrasse 1</address-1><city>Munich</city><country>DE</country></address>
+            </agent>
+          </agents>
         </parties>
+        <designation-of-states>
+          <designation-ep>
+            <contracting-states><country>DE</country><country>FR</country></contracting-states>
+          </designation-ep>
+        </designation-of-states>
         <invention-title lang="en">Example Widget</invention-title>
         <classifications-ipcr>
           <classification-ipcr>

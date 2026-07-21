@@ -9,7 +9,14 @@ import httpx
 
 from app.config import Settings
 from app.errors import ErrorCode, PatentServiceError
-from app.models.patents import PatentBasicInfo, PatentOriginalFile, PatentReference
+from app.models.patents import (
+    PatentBasicInfo,
+    PatentDesignatedStates,
+    PatentOriginalFile,
+    PatentPriorityData,
+    PatentReference,
+    PatentRepresentative,
+)
 from app.utils.text_metrics import extract_drawing_labels, normalize_text
 
 _CLAIM_NUMBER_PATTERN = re.compile(r"^\d+\.")
@@ -43,6 +50,15 @@ class EpoOpsClient:
             source="epo",
         )
 
+    async def fetch_register_bibliographic_data(
+        self, reference: PatentReference
+    ) -> str:
+        return await self._get_xml(
+            path=self.build_register_biblio_path(reference),
+            accept="application/register+xml",
+            source="epo",
+        )
+
     async def fetch_description_data(self, reference: PatentReference) -> str:
         return await self._get_xml(
             path=self.build_description_path(reference),
@@ -73,6 +89,13 @@ class EpoOpsClient:
 
     def build_biblio_path(self, reference: PatentReference) -> str:
         return f"/published-data/publication/epodoc/{reference.lookup_number}/biblio"
+
+    @staticmethod
+    def build_register_biblio_path(reference: PatentReference) -> str:
+        return (
+            "/register/publication/epodoc/"
+            f"{reference.country_code}{reference.doc_number}/biblio"
+        )
 
     def build_description_path(self, reference: PatentReference) -> str:
         return f"/published-data/publication/epodoc/{reference.lookup_number}/description"
@@ -233,6 +256,7 @@ class EpoOpsClient:
             application_number=application_doc.get("selected_number", ""),
             applicants=_party_names(exchange_document, "applicants", "applicant"),
             inventors=_party_names(exchange_document, "inventors", "inventor"),
+            representatives=_epo_representatives(exchange_document),
             ipc=_classification_values(exchange_document, "classification-ipcr"),
             cpc=_classification_values(exchange_document, "patent-classification"),
         )
@@ -242,8 +266,49 @@ class EpoOpsClient:
             "title_language": title_language,
             "abstract_language": abstract_language,
             "first_priority_date": _first_priority_date(exchange_document),
+            "priority_data": _epo_priority_data(exchange_document),
+            "publication_language": _epo_language(
+                exchange_document, "language-of-publication", title_language
+            ),
+            "filing_language": _epo_language(
+                exchange_document, "language-of-filing", ""
+            ),
+            "designated_states": _epo_designated_states(exchange_document),
         }
         return basic_info, raw_refs
+
+    @staticmethod
+    def parse_register_bibliographic_data(xml_text: str) -> dict[str, Any]:
+        root = _parse_xml(xml_text, source="epo")
+        register_document = _first_local(root.iter(), "register-document")
+        if register_document is None:
+            raise PatentServiceError(
+                code=ErrorCode.UPSTREAM_RESPONSE_INVALID,
+                status_code=502,
+                message="EPO Register response did not contain a register document.",
+                source="epo",
+            )
+        bibliographic = _first_local(register_document.iter(), "bibliographic-data")
+        if bibliographic is None:
+            bibliographic = register_document
+        publication_reference = _first_local(
+            bibliographic.iter(), "publication-reference"
+        )
+        publication_language = ""
+        if publication_reference is not None:
+            document_id = _first_local(publication_reference.iter(), "document-id")
+            if document_id is not None:
+                publication_language = (document_id.get("lang") or "").upper()
+        return {
+            "agents": _epo_representatives(bibliographic),
+            "priority_data": _epo_priority_data(bibliographic),
+            "publication_language": publication_language
+            or (bibliographic.get("lang") or "").upper(),
+            "filing_language": _epo_language(
+                bibliographic, "language-of-filing", ""
+            ),
+            "designated_states": _epo_designated_states(bibliographic),
+        }
 
     @staticmethod
     def parse_family_international_filing_date(
@@ -251,10 +316,26 @@ class EpoOpsClient:
     ) -> tuple[str | None, dict[str, Any]]:
         root = _parse_xml(xml_text, source="epo")
         wo_members: list[dict[str, str]] = []
+        family_publications: list[dict[str, str]] = []
         for family_member in _all_local(root.iter(), "family-member"):
             publication = _collect_document_references(
                 family_member, "publication-reference", reference_kind="publication"
             )
+            publication_ids = publication.get("ids", {})
+            epodoc_number = publication_ids.get("epodoc", {}).get("doc_number", "")
+            display_number = epodoc_number or (
+                f"{publication.get('country', '')}{publication.get('doc_number', '')}"
+            )
+            if display_number:
+                family_publication = {
+                    "number": display_number,
+                    "country": publication.get("country", ""),
+                    "doc_number": publication.get("doc_number", ""),
+                    "kind": publication.get("kind", ""),
+                    "date": publication.get("selected_date", ""),
+                }
+                if family_publication not in family_publications:
+                    family_publications.append(family_publication)
             if publication.get("country") != "WO":
                 continue
             application = _collect_document_references(
@@ -273,7 +354,10 @@ class EpoOpsClient:
         filing_dates = sorted(
             {member["filing_date"] for member in wo_members if member["filing_date"]}
         )
-        return (filing_dates[0] if filing_dates else None), {"wo_members": wo_members}
+        return (filing_dates[0] if filing_dates else None), {
+            "wo_members": wo_members,
+            "family_publications": family_publications,
+        }
 
     @staticmethod
     def parse_description_data(
@@ -503,6 +587,86 @@ def _party_names(root: ET.Element, group_name: str, item_name: str) -> list[str]
         if value:
             values.append(value)
     return _unique_texts(values)
+
+
+def _epo_representatives(root: ET.Element) -> list[PatentRepresentative]:
+    representatives: list[PatentRepresentative] = []
+    for group_name, item_name in (("agents", "agent"), ("representatives", "representative")):
+        group = _first_local(root.iter(), group_name)
+        if group is None:
+            continue
+        for item in _all_local(group.iter(), item_name):
+            name = _first_text(item, "name")
+            organization = _first_text(item, "orgname")
+            address_node = _first_local(item.iter(), "address")
+            address_parts: list[str] = []
+            country = ""
+            if address_node is not None:
+                for child in address_node:
+                    value = _joined_text(child)
+                    if _local_name(child.tag) == "country":
+                        country = value
+                    elif value:
+                        address_parts.append(value)
+            representative = PatentRepresentative(
+                name=name,
+                organization=organization,
+                address=normalize_text(" ".join(address_parts)),
+                country=country,
+            )
+            if any(representative.model_dump().values()) and representative not in representatives:
+                representatives.append(representative)
+        break
+    return representatives
+
+
+def _epo_priority_data(root: ET.Element) -> list[PatentPriorityData]:
+    priorities: list[PatentPriorityData] = []
+    for claim in _all_local(root.iter(), "priority-claim"):
+        document_id = _first_local(claim.iter(), "document-id")
+        source = document_id if document_id is not None else claim
+        priority = PatentPriorityData(
+            number=_first_text(source, "doc-number"),
+            date=_first_text(source, "date"),
+            country=_first_text(source, "country"),
+            kind=claim.attrib.get("kind", "") or _first_text(source, "kind"),
+        )
+        if any(priority.model_dump().values()) and priority not in priorities:
+            priorities.append(priority)
+    return priorities
+
+
+def _epo_language(root: ET.Element, element_name: str, fallback: str) -> str:
+    value = _first_text(root, element_name)
+    if value:
+        return value.upper()
+    return (fallback or "").upper()
+
+
+def _epo_designated_states(root: ET.Element) -> PatentDesignatedStates:
+    designation = _first_local(root.iter(), "designation-of-states")
+    if designation is None:
+        return PatentDesignatedStates()
+    regions: list[str] = []
+    countries: list[str] = []
+    protection_types: list[str] = []
+    for region in _all_local(designation.iter(), "region"):
+        code = _first_text(region, "country")
+        if code and code not in regions:
+            regions.append(code)
+    for country_node in _all_local(designation.iter(), "country"):
+        code = _joined_text(country_node)
+        if code and code not in regions and code not in countries:
+            countries.append(code)
+    for protection in _all_local(designation.iter(), "kind-of-protection"):
+        value = _joined_text(protection)
+        if value and value not in protection_types:
+            protection_types.append(value)
+    return PatentDesignatedStates(
+        regions=regions,
+        countries=countries,
+        protection_types=protection_types,
+    )
 
 
 def _first_priority_date(root: ET.Element) -> str | None:

@@ -1,0 +1,3583 @@
+
+=== GET /pct-publications/WO25078629/ia-status-report
+status: 200
+content-type: application/json
+x-ratelimit-remaining: 7
+x-ratelimit-reset: 
+{
+  "wo-bibliographic-data": {
+    "publication-reference": {
+      "id": null,
+      "document-id": {
+        "country": "WO",
+        "doc-number": "2025/078629",
+        "kind": "A1",
+        "name": null,
+        "date": "20250417",
+        "lang": "EN"
+      }
+    },
+    "wo-publication-info": {
+      "wo-correction": null,
+      "wo-bio-material-after-pub": null,
+      "isr-status": [
+        {
+          "received-at-ib": {
+            "date": "20250110"
+          },
+          "isr-status": "new"
+        }
+      ],
+      "pct-pub-info": [
+        {
+          "wo-published-text": {
+            "wo-text-letter-code": [
+              "x",
+              "y"
+            ]
+          },
+          "pct-art64": null
+        }
+      ],
+      "wo-pubnum": "16/2025"
+    },
+    "application-reference": {
+      "id": null,
+      "document-id": {
+        "country": "EP",
+        "doc-number": "PCT/EP2024/078738",
+        "kind": null,
+        "name": null,
+        "date": "20241011",
+        "lang": "EN"
+      },
+      "appl-type": "PCT"
+    },
+    "wo-application-info": {
+      "date-of-earliest-priority": {
+        "date": "20231013"
+      },
+      "received-at-ib": {
+        "date": "20241015"
+      },
+      "considered-not-made": null,
+      "withdrawn": null
+    },
+    "wo-amendment-info": null,
+    "wo-bib-change-info": null,
+    "wo-demand-info": null,
+    "file-reference-id": "P6814PC00",
+    "invention-title": [
+      {
+        "id": null,
+        "content": [
+          "CAPSULE FOR DELIVERY OF A CARRIER SYSTEM WITH A LOCALLY ACTING CARGO TO THE INTESTINES OF A MAMMAL"
+        ],
+        "lang": "EN"
+      },
+      {
+        "id": null,
+        "content": [
+          "CAPSULE POUR L'ADMINISTRATION D'UN SYSTÈME DE SUPPORT COMPORTANT UNE CHARGE À ACTION LOCALE AUX INTESTINS D'UN MAMMIFÈRE"
+        ],
+        "lang": "FR"
+      }
+    ],
+    "parties": {
+      "applicants": {
+        "applicant": [
+          {
+            "addressbook": [
+              {
+                "id": null,
+                "content": [
+                  {
+                    "name": {
+                      "value": "ENTEROTARGET APS",
+                      "name-type": "legal"
+                    }
+                  },
+                  {
+                    "address": {
+                      "address-1": "Fruebjergvej 3\n2100 Copenhagen Ø",
+                      "address-2": null,
+                      "address-3": null,
+                      "address-4": null,
+                      "address-5": null,
+                      "mailcode": null,
+                      "pobox": null,
+                      "room": null,
+                      "address-floor": null,
+                      "building": null,
+                      "street": null,
+                      "city": null,
+                      "county": null,
+                      "state": null,
+                      "postcode": "2100",
+                      "country": "DK",
+                      "text": null
+                    }
+                  }
+                ],
+                "lang": "EN"
+              }
+            ],
+            "nationality": {
+              "country": "DK"
+            },
+            "residence": {
+              "country": "DK"
+            },
+            "us-rights": null,
+            "designated-states": null,
+            "designated-states-as-inventor": null,
+            "sequence": "1",
+            "app-type": "applicant",
+            "designation": "all"
+          }
+        ]
+      },
+      "inventors": {
+        "inventorOrDeceasedInventor": [
+          {
+            "inventor": {
+              "addressbook": [
+                {
+                  "id": null,
+                  "content": [
+                    {
+                      "name": {
+                        "value": "OLSEN, Jørgen",
+                        "name-type": "natural"
+                      }
+                    },
+                    {
+                      "address": {
+                        "address-1": "c/o EnteroTarget ApS\nFruebjergvej 3\n2100 Copenhagen Ø",
+                        "address-2": null,
+                        "address-3": null,
+                        "address-4": null,
+                        "address-5": null,
+                        "mailcode": null,
+                        "pobox": null,
+                        "room": null,
+                        "address-floor": null,
+                        "building": null,
+                        "street": null,
+                        "city": null,
+                        "county": null,
+                        "state": null,
+                        "postcode": "2100",
+                        "country": "DK",
+                        "text": null
+                      }
+                    }
+                  ],
+                  "lang": "EN"
+                }
+              ],
+              "designated-states": null,
+              "sequence": "1",
+              "designation": "all"
+            }
+          }
+        ]
+      },
+      "correspondence-address": null,
+      "agents": {
+        "customer-number": null,
+        "agent": [
+          {
+            "addressbook": [
+              {
+                "id": null,
+                "content": [
+                  {
+                    "name": {
+                      "value": "HØIBERG P/S",
+                      "name-type": "legal"
+                    }
+                  },
+                  {
+                    "address": {
+                      "address-1": "Adelgade 12\n1304 Copenhagen K",
+                      "address-2": null,
+                      "address-3": null,
+                      "address-4": null,
+                      "address-5": null,
+                      "mailcode": null,
+                      "pobox": null,
+                      "room": null,
+                      "address-floor": null,
+                      "building": null,
+                      "street": null,
+                      "city": null,
+                      "county": null,
+                      "state": null,
+                      "postcode": "1304",
+                      "country": "DK",
+                      "text": null
+                    }
+                  }
+                ],
+                "lang": "EN"
+              }
+            ],
+            "sequence": "1",
+            "rep-type": "agent"
+          }
+        ]
+      }
+    },
+    "designation-of-states": {
+      "designation-pct": {
+        "regional": [
+          {
+            "region": {
+              "country": "EP"
+            },
+            "countryAndProtectionRequest": [
+              "AL",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "AT",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "BE",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "BG",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "CH",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "CY",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "CZ",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "DE",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "DK",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "EE",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "ES",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "FI",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "FR",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "GB",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "GR",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "HR",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "HU",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "IE",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "IS",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "IT",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "LT",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "LU",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "LV",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "MC",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "ME",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "MK",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "MT",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "NL",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "NO",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "PL",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "PT",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "RO",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "RS",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "SE",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "SI",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "SK",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "SM",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "TR",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              }
+            ],
+            "any-other-state": null
+          },
+          {
+            "region": {
+              "country": "OA"
+            },
+            "countryAndProtectionRequest": [
+              "BF",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "BJ",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "CF",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "CG",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "CI",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "CM",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "GA",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "GN",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "GQ",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "GW",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "KM",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "ML",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "MR",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "NE",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "SN",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "TD",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "TG",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              }
+            ],
+            "any-other-state": null
+          },
+          {
+            "region": {
+              "country": "AP"
+            },
+            "countryAndProtectionRequest": [
+              "BW",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "CV",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "GH",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "GM",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "KE",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "LR",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "LS",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "MW",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "MZ",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "NA",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "RW",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "SC",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "SD",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "SL",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "ST",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "SZ",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "TZ",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "UG",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "ZM",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "ZW",
+              {
+                "protection-request": {
+                  "kind-of-protection": "UM",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              }
+            ],
+            "any-other-state": null
+          },
+          {
+            "region": {
+              "country": "EA"
+            },
+            "countryAndProtectionRequest": [
+              "AM",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "AZ",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "BY",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "KG",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "KZ",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "RU",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "TJ",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              },
+              "TM",
+              {
+                "protection-request": {
+                  "kind-of-protection": "PAT",
+                  "document-id": null,
+                  "subset": "yes"
+                }
+              }
+            ],
+            "any-other-state": null
+          }
+        ],
+        "national": {
+          "countryAndProtectionRequest": [
+            "AE",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "AG",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UMC",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "AL",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "AM",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "STP",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "AO",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "AT",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "AU",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "AZ",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "BA",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "CP",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "BB",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "BG",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "BH",
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "BN",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "BR",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "BW",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UMC",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "BY",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "BZ",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "CA",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "CH",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "CL",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "CN",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "CO",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "CR",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "CU",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "CV",
+            {
+              "protection-request": {
+                "kind-of-protection": "PR",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "CZ",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "DE",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "DJ",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "DK",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "DM",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "DO",
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "DZ",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "EC",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "EE",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "EG",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "ES",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "FI",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "GB",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "GD",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "GE",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "GH",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UC",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "GM",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "GT",
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "HN",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "HR",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "CP",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "HU",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "ID",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "IL",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "IN",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "IQ",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "IR",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "IS",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "IT",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "JM",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "JO",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "JP",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "KE",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "KG",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "KH",
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "KN",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UC",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "KP",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "IC",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PP",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PIC",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "KR",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "KW",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "KZ",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "LA",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "LC",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "LK",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "LR",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "LS",
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "LU",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "LY",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "MA",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "MD",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "STP",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "MG",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "MK",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "MN",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "MU",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "MW",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "MX",
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "MY",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UI",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "MZ",
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "NA",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "NG",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "NI",
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "NO",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "NZ",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "OM",
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "PA",
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "PE",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "PG",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "PH",
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "PL",
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "PT",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "QA",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "RO",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "RS",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PP",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "RU",
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "RW",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "SA",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "SC",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "SD",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "SE",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "SG",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "SK",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "SL",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "ST",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "SV",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "SY",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "TH",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PP",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "TJ",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PP",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "TM",
+            {
+              "protection-request": {
+                "kind-of-protection": "PR",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "TN",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "TR",
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "TT",
+            {
+              "protection-request": {
+                "kind-of-protection": "UC",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "TZ",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "UA",
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "UG",
+            {
+              "protection-request": {
+                "kind-of-protection": "UC",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "US",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "UZ",
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "VC",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UC",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "VN",
+            {
+              "protection-request": {
+                "kind-of-protection": "PUS",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "WS",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "IPR",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "ZA",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "ZM",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            {
+              "protection-request": {
+                "kind-of-protection": "UM",
+                "document-id": null,
+                "subset": "yes"
+              }
+            },
+            "ZW",
+            {
+              "protection-request": {
+                "kind-of-protection": "PAT",
+                "document-id": null,
+                "subset": "yes"
+              }
+            }
+          ]
+        },
+        "new-designation-country": null
+      },
+      "precautionary-designation-statement": null,
+      "exclusion-from-designation": null
+    },
+    "wo-priority-info": {
+      "priorityClaimAndPriorityClaimIbInfoAndIncorporationByReference": [
+        {
+          "priority-claim": {
+            "id": null,
+            "country": "EP",
+            "doc-number": "23203477.7",
+            "date": "20231013",
+            "office-of-filing": null,
+            "priority-doc-requested": null,
+            "priority-doc-attached": null,
+            "restore-rights": null,
+            "sequence": "1",
+            "kind": "regional"
+          }
+        },
+        {
+          "priority-claim-ib-info": {
+            "received-at-ib": {
+              "date": "20241023"
+            },
+            "pct-rule17-1": {
+              "compliance": "yes"
+            },
+            "withdrawn": null,
+            "considered-not-made": null
+          }
+        }
+      ]
+    },
+    "search-authority": {
+      "isa": {
+        "country": "EP"
+      },
+      "earlier-search-request": null
+    },
+    "declaration-info": {
+      "declaration1": null,
+      "declaration2": null,
+      "declaration3": null,
+      "declaration4": {
+        "quantity": "1"
+      },
+      "declaration5": null,
+      "combined-declaration": null,
+      "designated-states-as-dec": [
+        {
+          "all-designations": null,
+          "all-designations-except-us": null,
+          "regional": null,
+          "national": null,
+          "dec-type": "4"
+        }
+      ]
+    },
+    "classification-ipc": null,
+    "classifications-ipcr": {
+      "id": null,
+      "classification-ipcr": [
+        {
+          "id": null,
+          "ipc-version-indicator": {
+            "date": "20060101"
+          },
+          "classification-level": "C",
+          "section": "A",
+          "class": {
+            "value": "61",
+            "class-type": null
+          },
+          "subclass": "K",
+          "main-group": "9",
+          "subgroup": "46",
+          "symbol-position": "F",
+          "classification-value": "I",
+          "action-date": null,
+          "generating-office": {
+            "country": "EP"
+          },
+          "classification-status": "B",
+          "classification-data-source": "H",
+          "text": null,
+          "sequence": "1"
+        },
+        {
+          "id": null,
+          "ipc-version-indicator": {
+            "date": "20060101"
+          },
+          "classification-level": "C",
+          "section": "A",
+          "class": {
+            "value": "61",
+            "class-type": null
+          },
+          "subclass": "K",
+          "main-group": "9",
+          "subgroup": "16",
+          "symbol-position": "L",
+          "classification-value": "I",
+          "action-date": null,
+          "generating-office": {
+            "country": "EP"
+          },
+          "classification-status": "B",
+          "classification-data-source": "H",
+          "text": null,
+          "sequence": "2"
+        },
+        {
+          "id": null,
+          "ipc-version-indicator": {
+            "date": "20060101"
+          },
+          "classification-level": "C",
+          "section": "A",
+          "class": {
+            "value": "61",
+            "class-type": null
+          },
+          "subclass": "K",
+          "main-group": "9",
+          "subgroup": "48",
+          "symbol-position": "L",
+          "classification-value": "I",
+          "action-date": null,
+          "generating-office": {
+            "country": "EP"
+          },
+          "classification-status": "B",
+          "classification-data-source": "H",
+          "text": null,
+          "sequence": "3"
+        },
+        {
+          "id": null,
+          "ipc-version-indicator": {
+            "date": "20060101"
+          },
+          "classification-level": "C",
+          "section": "A",
+          "class": {
+            "value": "61",
+            "class-type": null
+          },
+          "subclass": "K",
+          "main-group": "38",
+          "subgroup": "28",
+          "symbol-position": "L",
+          "classification-value": "I",
+          "action-date": null,
+          "generating-office": {
+            "country": "EP"
+          },
+          "classification-status": "B",
+          "classification-data-source": "H",
+          "text": null,
+          "sequence": "4"
+        },
+        {
+          "id": null,
+          "ipc-version-indicator": {
+            "date": "20060101"
+          },
+          "classification-level": "C",
+          "section": "A",
+          "class": {
+            "value": "61",
+            "class-type": null
+          },
+          "subclass": "P",
+          "main-group": "1",
+          "subgroup": "00",
+          "symbol-position": "L",
+          "classification-value": "I",
+          "action-date": null,
+          "generating-office": {
+            "country": "EP"
+          },
+          "classification-status": "B",
+          "classification-data-source": "H",
+          "text": null,
+          "sequence": "5"
+        }
+      ]
+    },
+    "figure-to-publish": null,
+    "signatories": null,
+    "correspondence-address": null,
+    "dtext": null,
+    "date-produced": "20260423",
+    "lang": "EN",
+    "dtd-version": "0.2",
+    "file": null,
+    "status": null,
+    "office-name": null,
+    "produced-by": "IB"
+  },
+  "abstract": [
+    {
+      "id": null,
+      "doc-page": null,
+      "abst-problem": null,
+      "abst-solution": null,
+      "p": [
+        {
+          "id": null,
+          "content": [
+            "The present invention relates to a capsule comprising an effervescent couple for targeted delivery of an active agent to the gastrointestinal tract."
+          ],
+          "num": "0000"
+        }
+      ],
+      "lang": "EN",
+      "status": null
+    },
+    {
+      "id": null,
+      "doc-page": null,
+      "abst-problem": null,
+      "abst-solution": null,
+      "p": [
+        {
+          "id": null,
+          "content": [
+            "La présente invention concerne une capsule comprenant un couple effervescent pour l'administration ciblée d'un agent actif au tractus digestif."
+          ],
+          "num": "0000"
+        }
+      ],
+      "lang": "FR",
+      "status": null
+    }
+  ],
+  "as-at-date": {
+    "date": "20250114"
+  },
+  "wo-processing-information": {
+    "wo-priority-date-information": {
+      "wo-ro-closing-date": null,
+      "valid": "Y"
+    },
+    "wo-international-search-process-information": {
+      "wo-search-copy-transmitted-to-isa": {
+        "date-of-mailing": null,
+        "received-at-isa": null
+      },
+      "wo-isa-search-report-information": {
+        "date-of-mailing": {
+          "date": "20250115"
+        },
+        "received-at-ib": {
+          "date": "20250110"
+        },
+        "isr-established": "Y"
+      }
+    },
+    "wo-supplementary-search-info": null,
+    "agents-for-demand": null,
+    "produced-by": "IB",
+    "date-produced": "20260423"
+  },
+  "lang": null
+}
+
+=== GET /pct-publications/WO25078629
+status: 200
+content-type: application/json
+x-ratelimit-remaining: 9
+x-ratelimit-reset: 
+{
+  "availableDocuments": [
+    {
+      "docId": "id00000085121770",
+      "docType": "DECLA",
+      "minSpecCode": "decl"
+    },
+    {
+      "docId": "id00000085109166",
+      "docType": "PAMPH",
+      "minSpecCode": "pamph",
+      "gazetteNumber": "16/2025"
+    }
+  ],
+  "woNumber": "WO2025078629"
+}
+
+=== GET /documents/id00000085109166/pages
+status: 200
+content-type: application/json
+x-ratelimit-remaining: 6
+x-ratelimit-reset: 
+{
+  "content": [
+    "000022.tif",
+    "000045.tif",
+    "000058.tif",
+    "000043.tif",
+    "000050.tif",
+    "000024.tif",
+    "000007.tif",
+    "000053.tif",
+    "000056.tif",
+    "000070.tif",
+    "000001.tif",
+    "000073.tif",
+    "000048.tif",
+    "000063.tif",
+    "000071.tif",
+    "000014.tif",
+    "packagedata-pkda.xml",
+    "000039.tif",
+    "000011.tif",
+    "000015.tif",
+    "000036.tif",
+    "000068.tif",
+    "000012.tif",
+    "000032.tif",
+    "000026.tif",
+    "000076.tif",
+    "000052.tif",
+    "000038.tif",
+    "000004.tif",
+    "000030.tif",
+    "Pag.lst",
+    "000055.tif",
+    "000072.tif",
+    "000010.tif",
+    "000008.tif",
+    "000062.tif",
+    "000044.tif",
+    "000021.tif",
+    "000069.tif",
+    "000006.tif",
+    "000041.tif",
+    "000027.tif",
+    "000005.tif",
+    "000042.tif",
+    "000061.tif",
+    "000029.tif",
+    "000009.tif",
+    "000066.tif",
+    "000031.tif",
+    "000028.tif",
+    "000035.tif",
+    "000067.tif",
+    "000065.tif",
+    "000046.tif",
+    "000064.tif",
+    "000059.tif",
+    "000020.tif",
+    "000047.tif",
+    "000040.tif",
+    "000016.tif",
+    "000037.tif",
+    "000018.tif",
+    "000057.tif",
+    "000017.tif",
+    "000025.tif",
+    "000054.tif",
+    "000074.tif",
+    "000034.tif",
+    "000013.tif",
+    "000023.tif",
+    "000019.tif",
+    "wo-published-application.xml",
+    "000002.tif",
+    "000051.tif",
+    "000060.tif",
+    "000033.tif",
+    "000003.tif",
+    "000049.tif",
+    "000075.tif"
+  ],
+  "docId": "id00000085109166"
+}
+
+=== GET /documents/id00000085109166/pages/wo-published-application.xml
+status: 200
+content-type: application/octet-stream
+x-ratelimit-remaining: 8
+x-ratelimit-reset: 
+<?xml version="1.0" encoding="UTF-8"?>
+<wo-published-application date-produced="20250417" dtd-version="1.7" file="wo-published-application.xml" lang="en" produced-by="IB">
+<wo-bibliographic-data lang="en" produced-by="IB">
+<publication-reference>
+<document-id lang="en">
+<country>WO</country>
+<doc-number>2025/078629</doc-number>
+<kind>A1</kind>
+<date>20250417</date>
+</document-id>
+</publication-reference>
+<wo-publication-info>
+<pct-pub-info>
+<wo-published-text>
+<wo-text-letter-code>x</wo-text-letter-code>
+<wo-text-letter-code>y</wo-text-letter-code>
+</wo-published-text>
+</pct-pub-info>
+<wo-pubnum>16/2025</wo-pubnum>
+</wo-publication-info>
+<application-reference appl-type="international">
+<document-id lang="en">
+<country>EP</country>
+<doc-number>EP2024/078738</doc-number>
+<date>20241011</date>
+</document-id>
+</application-reference>
+<invention-title lang="en">CAPSULE FOR DELIVERY OF A CARRIER SYSTEM WITH A LOCALLY ACTING CARGO TO THE INTESTINES OF A MAMMAL</invention-title>
+<invention-title lang="fr">CAPSULE POUR L'ADMINISTRATION D'UN SYSTÈME DE SUPPORT COMPORTANT UNE CHARGE À ACTION LOCALE AUX INTESTINS D'UN MAMMIFÈRE</invention-title>
+<parties>
+<applicants>
+<applicant app-type="applicant" designation="all" sequence="1">
+<addressbook lang="en">
+<name>ENTEROTARGET APS</name>
+<address>
+<address-1>Fruebjergvej 3</address-1>
+<address-2>2100 Copenhagen Ø</address-2>
+<postcode>2100</postcode>
+<country>DK</country>
+</address>
+</addressbook>
+<nationality>
+<country>DK</country>
+</nationality>
+<residence>
+<country>DK</country>
+</residence>
+</applicant>
+</applicants>
+<inventors>
+<inventor designation="all" sequence="1">
+<addressbook lang="en">
+<name>OLSEN, Jørgen</name>
+<address>
+<address-1>c/o EnteroTarget ApS</address-1>
+<address-2>Fruebjergvej 3</address-2>
+<address-3>2100 Copenhagen Ø</address-3>
+<postcode>2100</postcode>
+<country>DK</country>
+</address>
+</addressbook>
+</inventor>
+</inventors>
+<agents>
+<agent rep-type="agent" sequence="1">
+<addressbook lang="en">
+<name>HØIBERG P/S</name>
+<address>
+<address-1>Adelgade 12</address-1>
+<address-2>1304 Copenhagen K</address-2>
+<postcode>1304</postcode>
+<country>DK</country>
+</address>
+</addressbook>
+</agent>
+</agents>
+</parties>
+<designation-of-states>
+<designation-pct>
+<regional>
+<region>
+<country>EP</country>
+</region>
+<country>AL</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>AT</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>BE</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>BG</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>CH</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>CY</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>CZ</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>DE</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>DK</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>EE</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>ES</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>FI</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>FR</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>GB</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>GR</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>HR</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>HU</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>IE</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>IS</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>IT</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>LT</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>LU</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>LV</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>MC</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>ME</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>MK</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>MT</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>NL</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>NO</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>PL</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>PT</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>RO</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>RS</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>SE</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>SI</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>SK</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>SM</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<country>TR</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+</regional>
+<regional>
+<region>
+<country>OA</country>
+</region>
+<country>BF</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<protection-request>
+<kind-of-protection>utility-model</kind-of-protection>
+</protection-request>
+<country>BJ</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<protection-request>
+<kind-of-protection>utility-model</kind-of-protection>
+</protection-request>
+<country>CF</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<protection-request>
+<kind-of-protection>utility-model</kind-of-protection>
+</protection-request>
+<country>CG</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<protection-request>
+<kind-of-protection>utility-model</kind-of-protection>
+</protection-request>
+<country>CI</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<protection-request>
+<kind-of-protection>utility-model</kind-of-protection>
+</protection-request>
+<country>CM</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<protection-request>
+<kind-of-protection>utility-model</kind-of-protection>
+</protection-request>
+<country>GA</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<protection-request>
+<kind-of-protection>utility-model</kind-of-protection>
+</protection-request>
+<country>GN</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<protection-request>
+<kind-of-protection>utility-model</kind-of-protection>
+</protection-request>
+<country>GQ</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<protection-request>
+<kind-of-protection>utility-model</kind-of-protection>
+</protection-request>
+<country>GW</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<protection-request>
+<kind-of-protection>utility-model</kind-of-protection>
+</protection-request>
+<country>KM</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<protection-request>
+<kind-of-protection>utility-model</kind-of-protection>
+</protection-request>
+<country>ML</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<protection-request>
+<kind-of-protection>utility-model</kind-of-protection>
+</protection-request>
+<country>MR</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<protection-request>
+<kind-of-protection>utility-model</kind-of-protection>
+</protection-request>
+<country>NE</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<protection-request>
+<kind-of-protection>utility-model</kind-of-protection>
+</protection-request>
+<country>SN</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<protection-request>
+<kind-of-protection>utility-model</kind-of-protection>
+</protection-request>
+<country>TD</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<protection-request>
+<kind-of-protection>utility-model</kind-of-protection>
+</protection-request>
+<country>TG</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<protection-request>
+<kind-of-protection>utility-model</kind-of-protection>
+</protection-request>
+</regional>
+<regional>
+<region>
+<country>AP</country>
+</region>
+<country>BW</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<protection-request>
+<kind-of-protection>utility-model</kind-of-protection>
+</protection-request>
+<country>CV</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<protection-request>
+<kind-of-protection>utility-model</kind-of-protection>
+</protection-request>
+<country>GH</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<protection-request>
+<kind-of-protection>utility-model</kind-of-protection>
+</protection-request>
+<country>GM</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<protection-request>
+<kind-of-protection>utility-model</kind-of-protection>
+</protection-request>
+<country>KE</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<protection-request>
+<kind-of-protection>utility-model</kind-of-protection>
+</protection-request>
+<country>LR</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<protection-request>
+<kind-of-protection>utility-model</kind-of-protection>
+</protection-request>
+<country>LS</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<protection-request>
+<kind-of-protection>utility-model</kind-of-protection>
+</protection-request>
+<country>MW</country>
+<protection-request>
+<kind-of-protection>patent</kind-of-protection>
+</protection-request>
+<protection-request>
+<kind-of-protection>utility-model</kind-of-protection>
+</protection-request>
+<cou

@@ -5,6 +5,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from PIL import Image
 
 from app.clients.wipo_patentscope_rest import (
     WipoPatentScopeRestClient,
@@ -23,10 +24,19 @@ IASR = {
                 "country": "IB",
                 "doc-number": "PCT/IB2025/000001",
                 "date": "20250102",
+                "lang": "EN",
             }
         },
         "wo-application-info": {
             "date-of-earliest-priority": {"date": "20240103"}
+        },
+        "wo-priority-info": {
+            "items": [{"priority-claim": {"country": "DK", "doc-number": "PA202300999", "date": "20240103", "kind": "national"}}]
+        },
+        "designation-of-states": {
+            "designation-pct": {
+                "regional": [{"region": {"country": "EP"}, "countryAndProtectionRequest": ["DE", "FR", {"protection-request": {"kind-of-protection": "PAT"}}]}]
+            }
         },
         "invention-title": [
             {"lang": "FR", "content": ["TITRE"]},
@@ -89,6 +99,15 @@ def _zip_payload(name: str = "wo-published-application.xml") -> bytes:
     output = io.BytesIO()
     with zipfile.ZipFile(output, "w") as archive:
         archive.writestr(name, PAMPHLET_XML)
+        tiff = io.BytesIO()
+        Image.new("1", (100, 140), color=1).save(
+            tiff, format="TIFF", compression="group4", dpi=(300, 300)
+        )
+        archive.writestr("000001.tif", tiff.getvalue())
+        archive.writestr(
+            "Pag.lst",
+            '<DOC NOM="WO2025078629A1" NBP=1><DP N=1 IMA=000001.tif></DOC>',
+        )
     return output.getvalue()
 
 
@@ -113,6 +132,22 @@ def test_parse_pamphlet_fills_missing_fields_and_metrics():
     assert metrics["claims_words"] == 7
     assert metrics["drawings"].has_drawings is True
     assert metrics["drawings"].drawing_labels == ["FIG. 1 shows the capsule."]
+
+
+def test_pamphlet_international_application_keeps_pct_prefix():
+    payload = b"""\
+    <wo-published-application>
+      <wo-bibliographic-data>
+        <publication-reference><document-id><country>WO</country><doc-number>2026/044310</doc-number><kind>A1</kind></document-id></publication-reference>
+        <application-reference appl-type="international"><document-id><country>AT</country><doc-number>AT2025/060321</doc-number></document-id></application-reference>
+      </wo-bibliographic-data>
+    </wo-published-application>
+    """
+
+    info, metrics = parse_published_application_xml(payload)
+
+    assert info.application_number == "PCT/AT2025/060321"
+    assert metrics["application_reference"]["full_number"] == "PCT/AT2025/060321"
 
 
 def test_rest_lookup_uses_official_flow_without_downloading_zip(tmp_path: Path):
@@ -152,6 +187,13 @@ def test_rest_lookup_uses_official_flow_without_downloading_zip(tmp_path: Path):
 
     assert response.basic_info.title == "CAPSULE SYSTEM"
     assert response.basic_info.representatives[0].organization == "HOEIBERG P/S"
+    assert response.publication_no == "WO/2025/078629"
+    assert response.agents == response.basic_info.representatives
+    assert response.priority_data[0].number == "PA202300999"
+    assert response.filing_language == "EN"
+    assert response.designated_states.regions == ["EP"]
+    assert response.designated_states.countries == ["DE", "FR"]
+    assert response.designated_states.protection_types == ["PAT"]
     assert response.original_file.available is False
     assert response.raw_source_refs["lookup_mode"] == "rest"
     assert len(requests) == 4
@@ -159,7 +201,7 @@ def test_rest_lookup_uses_official_flow_without_downloading_zip(tmp_path: Path):
     assert all(request.headers["Authorization"].startswith("Basic ") for request in requests)
 
 
-def test_rest_lookup_downloads_official_zip_when_requested(tmp_path: Path):
+def test_rest_lookup_converts_official_zip_to_pdf_when_requested(tmp_path: Path):
     def handler(request: httpx.Request) -> httpx.Response:
         path = request.url.path
         if path.endswith("/ia-status-report"):
@@ -187,9 +229,16 @@ def test_rest_lookup_downloads_official_zip_when_requested(tmp_path: Path):
     response = asyncio.run(client.lookup_patent(_reference(), include_original_file=True))
 
     assert response.original_file.available is True
-    assert response.original_file.content_type == "application/zip"
-    with zipfile.ZipFile(response.original_file.storage_path) as archive:
-        assert archive.namelist() == ["wo-published-application.xml"]
+    assert response.original_file.content_type == "application/pdf"
+    assert response.original_file.filename == "WO2025078629A1.pdf"
+    assert response.original_file.download_url.endswith(
+        "/api/patents/files/WO2025078629A1.pdf"
+    )
+    assert Path(response.original_file.storage_path).read_bytes().startswith(b"%PDF-")
+    assert response.raw_source_refs["original_archive"]["filename"] == (
+        "WO2025078629_PAMPH.zip"
+    )
+    assert response.raw_source_refs["generated_pdf"]["page_count"] == 1
 
 
 def test_rest_rejects_unsafe_zip_member(tmp_path: Path):

@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     wipo_patentscope_username: str | None = None
     wipo_patentscope_password: str | None = None
     wipo_lookup_mode: Literal["auto", "rest", "soap"] = "auto"
+    wipo_storage_dir: str | None = None
     request_timeout_seconds: float = 20.0
 
     model_config = SettingsConfigDict(

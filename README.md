@@ -62,6 +62,29 @@ Accepted formats include:
 - `WO/2025/078629`
 - `WO 2025 078629 A1`
 
+Both EP and WO lookup responses expose the following bibliographic fields at the
+top level with the same shape:
+
+- `agents`: structured name, organization, address, and country values;
+- `priority_data`: priority number, date, country, and kind;
+- `publication_language` and `filing_language`: uppercase language codes;
+- `designated_states`: regional systems, country codes, and protection types.
+- `related_patent_documents`: other publication numbers in the EPO OPS simple
+  patent family, excluding the requested publication itself.
+
+Unavailable upstream values are represented by empty lists or `null`; they are
+not inferred.
+
+For EP publications, the service supplements OPS Published-data with the
+official Register bibliographic endpoint:
+
+```text
+GET /register/publication/epodoc/{number}/biblio
+```
+
+Register retrieval supplies the current agents, complete priority claims,
+language of filing, and designated states when those values are available.
+
 ## WIPO REST flow
 
 The service converts a normalized four-digit-year WO number to the REST form, for example `WO2025078629A1` to `WO25078629`, then calls:
@@ -81,12 +104,15 @@ The published-application XML is used to populate:
 - publication and application numbers/dates;
 - title and abstract, preferring English;
 - IPC, applicants, inventors and structured representatives;
+- agents, priority claims, publication/filing languages and designated states;
 - description and claims word metrics;
 - claim count and drawing indicators.
 
 PATENTSCOPE REST does not define CPC in the supplied schema. When CPC is empty and EPO OPS is configured, the service queries EPO OPS for the same WO publication and merges only CPC. Failure to enrich CPC leaves `cpc=[]` and adds a `cpc_unavailable` warning without failing the WIPO lookup.
 
-When `include_original_file=false`, the service fetches only the lightweight publication XML. When true, it also saves the official WIPO document ZIP under the service temporary storage directory and returns its `storage_path`. The ZIP is not represented as a PDF.
+When `include_original_file=false`, the service fetches only the lightweight publication XML. When true, it saves the official WIPO document ZIP, orders its TIFF pages using `Pag.lst`, and creates an image-only PDF. `original_file` points to that generated PDF and exposes a relative download URL such as `/api/patents/files/WO2026044310A1.pdf`. The source ZIP remains available in `raw_source_refs.original_archive`; `raw_source_refs.generated_pdf.official_pdf` is always `false` because this is a service-generated rendition, not an official PDF supplied by WIPO.
+
+Generated files are stored under the system temporary directory by default. Set `PATENT_SERVICE_WIPO_STORAGE_DIR` to use a persistent directory.
 
 ## WIPO document access
 
@@ -134,7 +160,7 @@ The image runs the API directly and does not contain a browser runtime.
 ## Known limitations
 
 - EPO and WIPO live lookups require their respective official-service credentials.
-- WIPO original publications are returned as the official ZIP package; package contents vary by document and account role.
+- WIPO original publications arrive as official ZIP packages. The service can combine TIFF publication pages into a downloadable image-only PDF, while preserving the ZIP path in `raw_source_refs`; package contents still vary by document and account role.
 - Drawing-page counts remain `null` when the XML does not reliably distinguish drawing pages from other page images.
 - CPC enrichment is best effort and requires EPO OPS credentials.
 - The service performs shallow structural parsing only; OCR, translation and semantic patent analysis are out of scope.
