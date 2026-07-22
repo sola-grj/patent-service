@@ -13,6 +13,16 @@ class ErrorCode(StrEnum):
     SOURCE_UNAVAILABLE = "source_unavailable"
     ORIGINAL_FILE_NOT_AVAILABLE = "original_file_not_available"
     UPSTREAM_RESPONSE_INVALID = "upstream_response_invalid"
+    UNSUPPORTED_FILE_TYPE = "unsupported_file_type"
+    FILE_SIGNATURE_MISMATCH = "file_signature_mismatch"
+    UPLOAD_TOO_LARGE = "upload_too_large"
+    AMBIGUOUS_ANALYSIS_INPUT = "ambiguous_analysis_input"
+    DOCUMENT_CONVERSION_UNAVAILABLE = "document_conversion_unavailable"
+    DOCUMENT_CONVERSION_FAILED = "document_conversion_failed"
+    DOCUMENT_PARSE_FAILED = "document_parse_failed"
+    SECTION_DETECTION_INCOMPLETE = "section_detection_incomplete"
+    OCR_FAILED = "ocr_failed"
+    ANALYSIS_TIMEOUT = "analysis_timeout"
 
 
 class PatentServiceError(Exception):

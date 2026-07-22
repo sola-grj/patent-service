@@ -201,3 +201,8 @@ def test_health_endpoint_reports_source_configuration():
     payload = response.json()
     assert payload["status"] == "ok"
     assert "sources" in payload
+    assert payload["ocr"]["selected_backend"] in {
+        "rapidocr",
+        "tesseract",
+    }
+    assert payload["ocr"]["available"] is True

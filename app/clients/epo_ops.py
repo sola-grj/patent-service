@@ -242,11 +242,16 @@ class EpoOpsClient:
         application_doc = _collect_document_references(
             exchange_document, "application-reference", reference_kind="application"
         )
+        publication_language = _epo_language(
+            exchange_document, "language-of-publication", ""
+        )
         title_node, title_language, _ = _select_language_node(
-            _all_local(exchange_document.iter(), "invention-title")
+            _all_local(exchange_document.iter(), "invention-title"),
+            preferred=publication_language,
         )
         abstract_node, abstract_language, _ = _select_language_node(
-            _all_local(exchange_document.iter(), "abstract")
+            _all_local(exchange_document.iter(), "abstract"),
+            preferred=publication_language,
         )
 
         basic_info = PatentBasicInfo(
@@ -267,9 +272,7 @@ class EpoOpsClient:
             "abstract_language": abstract_language,
             "first_priority_date": _first_priority_date(exchange_document),
             "priority_data": _epo_priority_data(exchange_document),
-            "publication_language": _epo_language(
-                exchange_document, "language-of-publication", title_language
-            ),
+            "publication_language": publication_language or title_language,
             "filing_language": _epo_language(
                 exchange_document, "language-of-filing", ""
             ),
@@ -362,10 +365,12 @@ class EpoOpsClient:
     @staticmethod
     def parse_description_data(
         xml_text: str,
+        *,
+        preferred_language: str | None = None,
     ) -> tuple[EpoDescriptionContent, dict[str, Any]]:
         root = _parse_xml(xml_text, source="epo")
         description_node, language, available_languages = _select_language_node(
-            _all_local(root.iter(), "description")
+            _all_local(root.iter(), "description"), preferred=preferred_language
         )
         if description_node is None:
             raise PatentServiceError(
@@ -392,10 +397,12 @@ class EpoOpsClient:
     @staticmethod
     def parse_claims_data(
         xml_text: str,
+        *,
+        preferred_language: str | None = None,
     ) -> tuple[EpoClaimsContent, dict[str, Any]]:
         root = _parse_xml(xml_text, source="epo")
         claims_node, language, available_languages = _select_language_node(
-            _all_local(root.iter(), "claims")
+            _all_local(root.iter(), "claims"), preferred=preferred_language
         )
         if claims_node is None:
             raise PatentServiceError(
@@ -766,6 +773,8 @@ def _select_document_date(
 
 def _select_language_node(
     nodes: list[ET.Element],
+    *,
+    preferred: str | None = None,
 ) -> tuple[ET.Element | None, str | None, list[str]]:
     if not nodes:
         return None, None, []
@@ -773,6 +782,11 @@ def _select_language_node(
     available_languages = [
         language for language in (_normalize_language(node.attrib.get("lang")) for node in nodes) if language
     ]
+    normalized_preferred = _normalize_language(preferred)
+    if normalized_preferred:
+        for node in nodes:
+            if _normalize_language(node.attrib.get("lang")) == normalized_preferred:
+                return node, normalized_preferred, _unique_texts(available_languages)
     for node in nodes:
         if _normalize_language(node.attrib.get("lang")) == "EN":
             return node, "EN", _unique_texts(available_languages)

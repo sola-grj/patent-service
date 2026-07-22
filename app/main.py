@@ -1,14 +1,13 @@
-import logging
-
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.api.routes import router
 from app.config import get_settings
 from app.errors import PatentServiceError
+from app.logging_config import configure_app_logging
 
 settings = get_settings()
-logger = logging.getLogger("patent_service")
+logger = configure_app_logging()
 
 app = FastAPI(title=settings.app_name)
 app.include_router(router, prefix=settings.api_prefix)

@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -166,3 +166,79 @@ class PatentLookupEpResponse(BaseModel):
 
 
 PatentLookupApiResponse = PatentLookupEpResponse | PatentLookupResponse
+
+
+class PatentAnalysisWarning(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    message: str
+    filename: str | None = None
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class PatentPartAnalysis(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    word_count: int = 0
+    status: Literal["found", "missing", "unclassified", "error"] = "missing"
+    method: str = "none"
+    confidence: Literal["high", "medium", "low", "none"] = "none"
+
+
+class PatentFivePartAnalysis(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    abstract: PatentPartAnalysis = Field(default_factory=PatentPartAnalysis)
+    abstract_drawing: PatentPartAnalysis = Field(default_factory=PatentPartAnalysis)
+    description: PatentPartAnalysis = Field(default_factory=PatentPartAnalysis)
+    description_drawings: PatentPartAnalysis = Field(default_factory=PatentPartAnalysis)
+    claims: PatentPartAnalysis = Field(default_factory=PatentPartAnalysis)
+    unclassified: PatentPartAnalysis = Field(default_factory=PatentPartAnalysis)
+
+
+class PatentFileAnalysis(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    filename: str
+    file_type: Literal["pdf", "doc", "docx", "wipo_zip", "epo_zip"]
+    sha256: str = ""
+    status: Literal["success", "partial", "failed"] = "success"
+    parts: PatentFivePartAnalysis = Field(default_factory=PatentFivePartAnalysis)
+    document_text_words: int = 0
+    drawing_ocr_words: int = 0
+    total_words: int = 0
+    warnings: list[PatentAnalysisWarning] = Field(default_factory=list)
+
+
+class PatentAnalysisAggregate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    abstract_words: int = 0
+    abstract_drawing_words: int = 0
+    description_words: int = 0
+    description_drawings_words: int = 0
+    claims_words: int = 0
+    unclassified_words: int = 0
+    total_words: int = 0
+
+
+class PatentAnalysisResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    input_mode: Literal["upload", "patent_number"]
+    status: Literal["success", "partial", "failed"]
+    patent_number: str | None = None
+    counting_standard: str = (
+        "Unicode words including numeric tokens; CJK characters counted individually"
+    )
+    excluded_content: list[str] = Field(
+        default_factory=lambda: [
+            "bibliographic cover fields outside the abstract",
+            "repeated patent-number headers, footers and page numbers",
+            "search reports and other procedural documents",
+        ]
+    )
+    files: list[PatentFileAnalysis] = Field(default_factory=list)
+    aggregate: PatentAnalysisAggregate = Field(default_factory=PatentAnalysisAggregate)
+    warnings: list[PatentAnalysisWarning] = Field(default_factory=list)
