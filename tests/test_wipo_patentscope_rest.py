@@ -16,14 +16,24 @@ from app.clients.wipo_patentscope_rest import (
 from app.config import Settings
 from app.errors import ErrorCode, PatentServiceError
 from app.models.patents import PatentReference, PatentSource
+from app.utils.patent_numbers import normalize_patent_number
 
 
 IASR = {
     "wo-bibliographic-data": {
+        "publication-reference": {
+            "document-id": {
+                "country": "WO",
+                "doc-number": "2026044310",
+                "kind": "A1",
+                "date": "20260305",
+                "lang": "EN",
+            }
+        },
         "application-reference": {
             "document-id": {
-                "country": "IB",
-                "doc-number": "PCT/IB2025/000001",
+                "country": "AT",
+                "doc-number": "PCT/AT2025/060357",
                 "date": "20250102",
                 "lang": "EN",
             }
@@ -114,6 +124,39 @@ def _zip_payload(name: str = "wo-published-application.xml") -> bytes:
 
 def test_rest_number_uses_two_digit_year_and_drops_kind_code():
     assert to_wipo_rest_number(_reference()) == "WO25078629"
+
+
+def test_rest_number_uses_pct_international_application_number():
+    reference = normalize_patent_number("PCT/AT2025/060357")
+
+    assert to_wipo_rest_number(reference) == "AT2025060357"
+
+
+def test_pct_application_quick_lookup_uses_official_ia_number_path():
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        assert request.url.path.endswith(
+            "/pct-publications/AT2025060357/ia-status-report"
+        )
+        return httpx.Response(200, json=IASR)
+
+    client = WipoPatentScopeRestClient(
+        _settings(), transport=httpx.MockTransport(handler)
+    )
+    response = asyncio.run(
+        client.lookup_bibliographic(
+            normalize_patent_number("PCT/AT2025/060357")
+        )
+    )
+
+    assert len(requests) == 1
+    assert response.normalized_number == "PCTAT2025060357"
+    assert response.display_number == "PCT/AT2025/060357"
+    assert response.application_no == "PCT/AT2025/060357"
+    assert response.publication_no == "WO2026044310A1"
+    assert response.raw_source_refs["rest_number"] == "AT2025060357"
 
 
 def test_parse_pamphlet_fills_missing_fields_and_metrics():

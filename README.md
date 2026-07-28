@@ -81,9 +81,12 @@ Accepted formats include:
 - `WO2025078629A1`
 - `WO/2025/078629`
 - `WO 2025 078629 A1`
+- `PCT/AT2025/060357`
+- `PCTAT2025060357`
 
-Both EP and WO lookup responses expose the following bibliographic fields at the
-top level with the same shape:
+EP publication, WO publication, and PCT international-application lookup
+responses expose the following bibliographic fields at the top level with the
+same shape:
 
 - `agents`: structured name, organization, address, and country values;
 - `priority_data`: priority number, date, country, and kind;
@@ -95,8 +98,8 @@ top level with the same shape:
 Unavailable upstream values are represented by empty lists or `null`; they are
 not inferred.
 
-Interactive lookup is deliberately small: EP calls only OPS `biblio`, and WO
-calls only PATENTSCOPE `ia-status-report`. An official result is returned with
+Interactive lookup is deliberately small: EP calls only OPS `biblio`, and
+WO/PCT calls only PATENTSCOPE `ia-status-report`. An official result is returned with
 `data_origin: "official"` immediately. Only a definitive official
 `source_no_result` may read a submitted-Request cache snapshot; that response
 uses `data_origin: "cache_fallback"` and carries cache age metadata. Source
@@ -205,8 +208,13 @@ language of filing, and designated states when those values are available.
 
 ## WIPO REST flow
 
-The interactive lookup converts a normalized four-digit-year WO number to the
-REST form, for example `WO2025078629A1` to `WO25078629`, and calls only:
+The interactive lookup converts the supplied number to the PATENTSCOPE REST
+path form:
+
+- WO publication: `WO2025078629A1` to `WO25078629`;
+- PCT international application: `PCT/AT2025/060357` to `AT2025060357`.
+
+It then calls only:
 
 ```text
 GET /pct-publications/{number}/ia-status-report

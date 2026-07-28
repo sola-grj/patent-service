@@ -200,21 +200,27 @@ class SupabasePatentCache:
         if not rows:
             raise _cache_error("The patent cache did not return the saved patent.")
         patent = rows[0]
-        for alias in {
-            reference.normalized_number,
+        aliases_by_normalized: dict[str, dict[str, str]] = {}
+        for alias in (
+            lookup.display_number,
             reference.display_number,
             lookup.normalized_number,
-            lookup.display_number,
-        }:
+            reference.normalized_number,
+        ):
+            normalized_alias = normalize_alias(alias)
+            if normalized_alias and normalized_alias not in aliases_by_normalized:
+                aliases_by_normalized[normalized_alias] = {
+                    "patent_id": str(patent["id"]),
+                    "alias_number": alias,
+                    "normalized_alias": normalized_alias,
+                }
+        aliases = list(aliases_by_normalized.values())
+        if aliases:
             await self._rest(
                 "POST",
                 "patent_lookup_aliases",
                 params={"on_conflict": "normalized_alias"},
-                json={
-                    "patent_id": patent["id"],
-                    "alias_number": alias,
-                    "normalized_alias": normalize_alias(alias),
-                },
+                json=aliases,
                 prefer="resolution=merge-duplicates,return=minimal",
             )
         return patent

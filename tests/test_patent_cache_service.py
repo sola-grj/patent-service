@@ -74,6 +74,38 @@ class DownloadCache:
         return b"%PDF-stored"
 
 
+class ConcurrentPrepareCache:
+    def __init__(self):
+        self.link_started = asyncio.Event()
+        self.find_started = asyncio.Event()
+        self.status_started = asyncio.Event()
+        self.finish_started = asyncio.Event()
+
+    async def get_formal_request(self, request_id):
+        return {"id": request_id, "submitted_at": "2026-07-28T00:00:00Z"}
+
+    async def upsert_patent(self, **kwargs):
+        return {"id": "patent-id"}
+
+    async def link_request_patent(self, request_id, patent_id):
+        self.link_started.set()
+        await self.find_started.wait()
+
+    async def find_available_document(self, patent_id):
+        self.find_started.set()
+        await self.link_started.wait()
+        return {"id": "document-id"}
+
+    async def set_request_file_status(self, request_id, status, **kwargs):
+        assert status == "parsed"
+        self.status_started.set()
+        await self.finish_started.wait()
+
+    async def finish_processing(self, patent_id):
+        self.finish_started.set()
+        await self.status_started.wait()
+
+
 def test_cache_prepare_rejects_non_submitted_request_before_writing():
     cache = DraftOnlyCache()
     service = PatentCacheService(cache=cache, lookup_service=object())
@@ -101,6 +133,36 @@ def test_cache_prepare_rejects_non_submitted_request_before_writing():
 
     assert excinfo.value.code == ErrorCode.CACHE_UNAVAILABLE
     assert cache.writes == 0
+
+
+def test_cache_prepare_runs_independent_cache_operations_concurrently():
+    cache = ConcurrentPrepareCache()
+    service = PatentCacheService(cache=cache, lookup_service=object())
+    lookup = PatentLookupEpResponse(
+        source=PatentSource.EPO,
+        normalized_number="EP1234567A1",
+        display_number="EP1234567A1",
+        title="Example",
+    )
+    analysis = PatentAnalysisResponse(
+        input_mode="patent_number",
+        status="success",
+        patent_number="EP1234567A1",
+        aggregate=PatentAnalysisAggregate(total_words=100),
+    )
+
+    result = asyncio.run(
+        asyncio.wait_for(
+            service.prepare(
+                request_id="request-id",
+                lookup=lookup,
+                analysis=analysis,
+            ),
+            timeout=1,
+        )
+    )
+
+    assert result.status == "completed"
 
 
 def test_cache_process_promotes_analysis_artifact_without_redownloading(

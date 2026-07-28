@@ -194,10 +194,9 @@ class WipoPatentScopeRestClient:
             application_date=application_reference.get("date") or None,
             application_no=basic_info.application_number or None,
             publication_date=basic_info.publication_date or None,
-            # PATENTSCOPE displays WO publication numbers without the kind code.
-            # Keep the upstream kind (for example A1) in raw_source_refs, while
-            # exposing the canonical display form at the API boundary.
-            publication_no=reference.display_number,
+            publication_no=_publication_number_for_response(
+                reference, publication_reference
+            ),
             agents=basic_info.representatives,
             priority_data=iasr_refs.get("priority_data", []),
             publication_language=content_metrics.get("publication_language")
@@ -239,7 +238,9 @@ class WipoPatentScopeRestClient:
             application_date=application_reference.get("date") or None,
             application_no=basic_info.application_number or None,
             publication_date=basic_info.publication_date or None,
-            publication_no=reference.display_number,
+            publication_no=_publication_number_for_response(
+                reference, publication_reference
+            ),
             agents=basic_info.representatives,
             priority_data=refs.get("priority_data", []),
             publication_language=refs.get("publication_language") or None,
@@ -442,6 +443,17 @@ class WipoPatentScopeRestClient:
 
 
 def to_wipo_rest_number(reference: PatentReference) -> str:
+    if reference.country_code == "PCT":
+        ia_number = reference.doc_number.upper()
+        if not re.fullmatch(r"[A-Z]{2}\d{10}", ia_number):
+            raise PatentServiceError(
+                code=ErrorCode.INVALID_PATENT_NUMBER_FORMAT,
+                status_code=422,
+                message="PCT international application number cannot be converted to WIPO REST format.",
+                source="wipo",
+            )
+        return ia_number
+
     digits = reference.doc_number
     if len(digits) != 10 or not digits.isdigit():
         raise PatentServiceError(
@@ -451,6 +463,17 @@ def to_wipo_rest_number(reference: PatentReference) -> str:
             source="wipo",
         )
     return f"WO{digits[2:]}"
+
+
+def _publication_number_for_response(
+    reference: PatentReference, publication_reference: dict[str, Any]
+) -> str | None:
+    if reference.country_code == "PCT":
+        return publication_reference.get("full_number") or None
+    # PATENTSCOPE displays WO publication numbers without the kind code.
+    # Keep the upstream kind (for example A1) in raw_source_refs, while
+    # exposing the canonical display form at the API boundary.
+    return reference.display_number
 
 
 def parse_iasr_payload(

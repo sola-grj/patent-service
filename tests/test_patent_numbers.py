@@ -53,7 +53,37 @@ def test_normalize_wo_publication_number():
 
 @pytest.mark.parametrize(
     "value",
-    ["", "123456", "US1234567A1", "WO/26/137030", "EPABC"],
+    [
+        "PCT/AT2025/060357",
+        "pct/at2025/060357",
+        "PCTAT2025060357",
+        "PCT AT 2025 060357",
+    ],
+)
+def test_normalize_pct_international_application_number(value: str):
+    reference = normalize_patent_number(value)
+
+    assert reference.source is PatentSource.WIPO
+    assert reference.normalized_number == "PCTAT2025060357"
+    assert reference.display_number == "PCT/AT2025/060357"
+    assert reference.country_code == "PCT"
+    assert reference.doc_number == "AT2025060357"
+    assert reference.kind_code is None
+    assert reference.lookup_number == "AT2025060357"
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "",
+        "123456",
+        "US1234567A1",
+        "WO/26/137030",
+        "EPABC",
+        "PCT/AT25/060357",
+        "PCT/AT2025/60357",
+        "PCT/AT2025/060357A1",
+    ],
 )
 def test_invalid_patent_numbers_raise(value: str):
     with pytest.raises(PatentServiceError):

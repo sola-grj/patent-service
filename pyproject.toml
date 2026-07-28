@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "patent-service"
 version = "0.1.0"
-description = "Focused patent retrieval service for EP and WO publication numbers."
+description = "Focused patent retrieval service for EP/WO publications and PCT international applications."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

@@ -11,6 +11,12 @@ _WO_COMPACT_PATTERN = re.compile(
 _WO_SLASH_PATTERN = re.compile(
     r"^WO/(?P<year>\d{4})/(?P<serial>\d{6})(?P<kind>[A-Z]\d{1,2})?$"
 )
+_PCT_COMPACT_PATTERN = re.compile(
+    r"^PCT(?P<office>[A-Z]{2})(?P<year>\d{4})(?P<serial>\d{6})$"
+)
+_PCT_SLASH_PATTERN = re.compile(
+    r"^PCT/(?P<office>[A-Z]{2})(?P<year>\d{4})/(?P<serial>\d{6})$"
+)
 
 
 def normalize_patent_number(raw_value: str) -> PatentReference:
@@ -23,6 +29,8 @@ def normalize_patent_number(raw_value: str) -> PatentReference:
         )
 
     compact = _SEPARATOR_PATTERN.sub("", value)
+    if compact.startswith("PCT"):
+        return _normalize_pct(value, compact)
     if compact.startswith("EP"):
         return _normalize_ep(compact)
     if compact.startswith("WO") or value.startswith("WO/"):
@@ -91,4 +99,29 @@ def _normalize_wo(value: str, compact: str) -> PatentReference:
         doc_number=f"{year}{serial}",
         kind_code=kind_code,
         lookup_number=normalized_number,
+    )
+
+
+def _normalize_pct(value: str, compact: str) -> PatentReference:
+    slash_match = _PCT_SLASH_PATTERN.fullmatch(value.replace(" ", ""))
+    compact_match = _PCT_COMPACT_PATTERN.fullmatch(compact)
+    match = slash_match or compact_match
+    if not match:
+        raise PatentServiceError(
+            code=ErrorCode.INVALID_PATENT_NUMBER_FORMAT,
+            status_code=422,
+            message="PCT international application number format is invalid.",
+        )
+
+    office = match.group("office")
+    year = match.group("year")
+    serial = match.group("serial")
+    rest_number = f"{office}{year}{serial}"
+    return PatentReference(
+        source=PatentSource.WIPO,
+        normalized_number=f"PCT{rest_number}",
+        display_number=f"PCT/{office}{year}/{serial}",
+        country_code="PCT",
+        doc_number=rest_number,
+        lookup_number=rest_number,
     )

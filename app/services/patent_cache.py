@@ -72,17 +72,20 @@ class PatentCacheService:
             processing_status="pending",
         )
         patent_id = str(patent["id"])
-        await self._cache.link_request_patent(request_id, patent_id)
-
-        document = await self._cache.find_available_document(patent_id)
+        _, document = await asyncio.gather(
+            self._cache.link_request_patent(request_id, patent_id),
+            self._cache.find_available_document(patent_id),
+        )
         if document:
-            await self._cache.set_request_file_status(
-                request_id,
-                "parsed",
-                document_id=str(document["id"]),
-                document=document,
+            await asyncio.gather(
+                self._cache.set_request_file_status(
+                    request_id,
+                    "parsed",
+                    document_id=str(document["id"]),
+                    document=document,
+                ),
+                self._cache.finish_processing(patent_id),
             )
-            await self._cache.finish_processing(patent_id)
             if analysis.artifact and self._artifact_store:
                 await asyncio.to_thread(
                     self._artifact_store.discard,
