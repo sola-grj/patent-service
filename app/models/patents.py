@@ -28,6 +28,14 @@ class PatentLookupRequest(BaseModel):
     include_original_file: bool = False
 
 
+class PatentLookupCacheInfo(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    is_cached: bool = False
+    reason: Literal["official_source_no_result"] | None = None
+    last_successful_fetch_at: str | None = None
+
+
 class PatentRepresentative(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -93,6 +101,9 @@ class PatentLookupResponse(BaseModel):
     source: PatentSource
     normalized_number: str
     display_number: str
+    data_origin: Literal["official", "cache_fallback"] = "official"
+    cache: PatentLookupCacheInfo = Field(default_factory=PatentLookupCacheInfo)
+    lookup_receipt: str | None = None
     basic_info: PatentBasicInfo
     application_date: str | None = None
     application_no: str | None = None
@@ -130,6 +141,9 @@ class PatentLookupEpResponse(BaseModel):
     source: PatentSource
     normalized_number: str
     display_number: str
+    data_origin: Literal["official", "cache_fallback"] = "official"
+    cache: PatentLookupCacheInfo = Field(default_factory=PatentLookupCacheInfo)
+    lookup_receipt: str | None = None
     title: str = ""
     abstract: str = ""
     ipc: list[str] = Field(default_factory=list)
@@ -223,12 +237,25 @@ class PatentAnalysisAggregate(BaseModel):
     total_words: int = 0
 
 
+class PatentAnalysisArtifact(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    artifact_id: str
+    filename: str
+    mime_type: str
+    byte_size: int = Field(ge=0)
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    expires_at: str
+
+
 class PatentAnalysisResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     input_mode: Literal["upload", "patent_number"]
     status: Literal["success", "partial", "failed"]
     patent_number: str | None = None
+    analysis_receipt: str | None = None
+    artifact: PatentAnalysisArtifact | None = None
     counting_standard: str = (
         "Unicode words including numeric tokens; CJK characters counted individually"
     )
@@ -242,3 +269,33 @@ class PatentAnalysisResponse(BaseModel):
     files: list[PatentFileAnalysis] = Field(default_factory=list)
     aggregate: PatentAnalysisAggregate = Field(default_factory=PatentAnalysisAggregate)
     warnings: list[PatentAnalysisWarning] = Field(default_factory=list)
+
+
+class PatentReceiptVerificationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    lookup_receipt: str
+    analysis_receipt: str
+
+
+class PatentReceiptVerificationResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    lookup: PatentLookupEpResponse | PatentLookupResponse
+    analysis: PatentAnalysisResponse
+
+
+class PatentCacheRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    request_id: str
+    lookup_receipt: str
+    analysis_receipt: str
+
+
+class PatentCacheAcceptedResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    request_id: str
+    patent_id: str
+    status: Literal["pending", "processing", "completed", "failed"]

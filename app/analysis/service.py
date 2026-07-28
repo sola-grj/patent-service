@@ -4,7 +4,13 @@ import tempfile
 import time
 from pathlib import Path
 
+from app.analysis.artifacts import AnalysisArtifactStore
 from app.analysis.common import AnalysisDraft
+from app.analysis.cancellation import (
+    AnalysisCancellation,
+    AnalysisCancelled,
+    cancellation_scope,
+)
 from app.analysis.counting import text_five_grams
 from app.analysis.ocr import AutoOcrEngine, OcrEngine
 from app.analysis.pdf import PdfPatentParser
@@ -17,6 +23,7 @@ from app.config import Settings
 from app.errors import ErrorCode, PatentServiceError
 from app.models.patents import (
     PatentAnalysisAggregate,
+    PatentAnalysisArtifact,
     PatentAnalysisResponse,
     PatentAnalysisWarning,
     PatentFileAnalysis,
@@ -39,22 +46,41 @@ class PatentAnalysisService:
         epo_publication_server_client: EpoPublicationServerClient,
         epo_ops_client: EpoOpsClient | None = None,
         ocr: OcrEngine | None = None,
+        artifact_store: AnalysisArtifactStore | None = None,
     ) -> None:
         self._settings = settings
         self._lookup_service = lookup_service
         self._epo_publication_server_client = epo_publication_server_client
         self._epo_ops_client = epo_ops_client
+        self._artifact_store = artifact_store or AnalysisArtifactStore(settings)
         engine = ocr or AutoOcrEngine(settings)
         self._pdf_parser = PdfPatentParser(settings, engine)
         self._word_parser = WordPatentParser(settings, engine)
         self._structured_parser = StructuredPatentParser(settings, engine)
 
-    def analyze_uploads(self, uploads: list[StoredUpload]) -> PatentAnalysisResponse:
-        drafts = [self._analyze_upload(upload) for upload in uploads]
-        return _build_response(input_mode="upload", drafts=drafts)
+    def analyze_uploads(
+        self,
+        uploads: list[StoredUpload],
+        *,
+        cancellation: AnalysisCancellation | None = None,
+    ) -> PatentAnalysisResponse:
+        with cancellation_scope(cancellation):
+            if cancellation:
+                cancellation.raise_if_cancelled()
+            drafts = [self._analyze_upload(upload) for upload in uploads]
+            if cancellation:
+                cancellation.raise_if_cancelled()
+            return _build_response(input_mode="upload", drafts=drafts)
 
-    async def analyze_patent(self, patent_number: str) -> PatentAnalysisResponse:
+    async def analyze_patent(
+        self,
+        patent_number: str,
+        *,
+        cancellation: AnalysisCancellation | None = None,
+    ) -> PatentAnalysisResponse:
         started_at = time.monotonic()
+        if cancellation:
+            cancellation.raise_if_cancelled()
         reference = normalize_patent_number(patent_number)
         logger.info(
             "patent analysis routed patent_number=%s normalized_number=%s source=%s step=source_route",
@@ -62,54 +88,98 @@ class PatentAnalysisService:
             reference.normalized_number,
             reference.source.value,
         )
-        if reference.source is PatentSource.WIPO:
-            logger.info(
-                "patent analysis step patent_number=%s source=wipo step=official_lookup service=PATENTSCOPE mode=%s action=fetch_metadata_and_pamphlet_zip",
-                reference.normalized_number,
-                self._settings.wipo_lookup_mode,
-            )
-            lookup_started_at = time.monotonic()
-            response = await self._lookup_service.lookup_patent(
-                PatentLookupRequest(
-                    patent_number=patent_number, include_original_file=True
+        artifact: PatentAnalysisArtifact | None = None
+        with tempfile.TemporaryDirectory(
+            prefix="patent-source-analysis-"
+        ) as directory:
+            workspace = Path(directory)
+            artifact_path: Path | None = None
+            artifact_filename = f"{reference.normalized_number}.pdf"
+            artifact_mime_type = "application/pdf"
+            if reference.source is PatentSource.WIPO:
+                logger.info(
+                    "patent analysis step patent_number=%s source=wipo step=official_lookup service=PATENTSCOPE mode=%s action=fetch_metadata_and_pamphlet_zip",
+                    reference.normalized_number,
+                    self._settings.wipo_lookup_mode,
                 )
-            )
-            archive = response.raw_source_refs.get("original_archive", {})
-            archive_path = Path(str(archive.get("storage_path") or ""))
-            if not archive_path.is_file():
-                raise PatentServiceError(
-                    code=ErrorCode.ORIGINAL_FILE_NOT_AVAILABLE,
-                    status_code=404,
-                    message="WIPO did not provide a locally available publication archive.",
+                lookup_started_at = time.monotonic()
+                response = await _lookup_full_in_workspace(
+                    self._lookup_service,
+                    PatentLookupRequest(
+                        patent_number=patent_number, include_original_file=True
+                    ),
+                    workspace,
+                )
+                if cancellation:
+                    cancellation.raise_if_cancelled()
+                archive = response.raw_source_refs.get("original_archive", {})
+                archive_path = Path(str(archive.get("storage_path") or ""))
+                if not archive_path.is_file():
+                    raise PatentServiceError(
+                        code=ErrorCode.ORIGINAL_FILE_NOT_AVAILABLE,
+                        status_code=404,
+                        message="WIPO did not provide a locally available publication archive.",
+                        source="wipo",
+                        details={"normalized_number": reference.normalized_number},
+                    )
+                logger.info(
+                    "patent analysis step patent_number=%s source=wipo step=pamphlet_zip action=download_complete lookup_mode=%s filename=%s bytes=%s elapsed_ms=%s",
+                    reference.normalized_number,
+                    response.raw_source_refs.get("lookup_mode", "unknown"),
+                    archive.get("filename") or archive_path.name,
+                    archive_path.stat().st_size,
+                    int((time.monotonic() - lookup_started_at) * 1000),
+                )
+                logger.info(
+                    "patent analysis step patent_number=%s source=wipo step=zip_parse action=start parser=structured_xml_with_ocr_fallback",
+                    reference.normalized_number,
+                )
+                draft = await _to_thread_cancellable(
+                    cancellation,
+                    self._structured_parser.parse,
+                    archive_path,
                     source="wipo",
-                    details={"normalized_number": reference.normalized_number},
+                    filename=archive.get("filename")
+                    or f"{reference.normalized_number}.zip",
                 )
-            logger.info(
-                "patent analysis step patent_number=%s source=wipo step=pamphlet_zip action=download_complete lookup_mode=%s filename=%s bytes=%s elapsed_ms=%s",
-                reference.normalized_number,
-                response.raw_source_refs.get("lookup_mode", "unknown"),
-                archive.get("filename") or archive_path.name,
-                archive_path.stat().st_size,
-                int((time.monotonic() - lookup_started_at) * 1000),
+                prepared_path = Path(response.original_file.storage_path or "")
+                if prepared_path.is_file():
+                    artifact_path = prepared_path
+                    artifact_filename = (
+                        response.original_file.filename or artifact_filename
+                    )
+                    artifact_mime_type = (
+                        response.original_file.content_type or artifact_mime_type
+                    )
+            else:
+                draft, publication_reference = await self._analyze_ep_publication(
+                    reference,
+                    cancellation=cancellation,
+                )
+                artifact_path = await self._prepare_ep_pdf(
+                    publication_reference,
+                    workspace,
+                    cancellation=cancellation,
+                )
+                artifact_filename = (
+                    f"{publication_reference.normalized_number}.pdf"
+                )
+            if cancellation:
+                cancellation.raise_if_cancelled()
+            _ensure_official_core_sections(draft, source=reference.source.value)
+            result = _build_response(
+                input_mode="patent_number",
+                drafts=[draft],
+                patent_number=reference.normalized_number,
             )
-            logger.info(
-                "patent analysis step patent_number=%s source=wipo step=zip_parse action=start parser=structured_xml_with_ocr_fallback",
-                reference.normalized_number,
-            )
-            draft = await asyncio.to_thread(
-                self._structured_parser.parse,
-                archive_path,
-                source="wipo",
-                filename=archive.get("filename") or f"{reference.normalized_number}.zip",
-            )
-        else:
-            draft = await self._analyze_ep_publication(reference)
-        _ensure_official_core_sections(draft, source=reference.source.value)
-        result = _build_response(
-            input_mode="patent_number",
-            drafts=[draft],
-            patent_number=reference.normalized_number,
-        )
+            if artifact_path and artifact_path.is_file():
+                artifact = await asyncio.to_thread(
+                    self._artifact_store.create_from_path,
+                    artifact_path,
+                    filename=artifact_filename,
+                    mime_type=artifact_mime_type,
+                )
+                result = result.model_copy(update={"artifact": artifact})
         _log_analysis_result(
             result,
             source=reference.source.value,
@@ -173,6 +243,8 @@ class PatentAnalysisService:
                 int((time.monotonic() - started_at) * 1000),
             )
             return _failed_draft(upload.filename, upload.file_type, exc)
+        except AnalysisCancelled:
+            raise
         except Exception as exc:  # defensive boundary for independent file results
             logger.exception(
                 "uploaded document analysis failed document=%s file_type=%s error=%s elapsed_ms=%s",
@@ -189,10 +261,17 @@ class PatentAnalysisService:
             )
             return _failed_draft(upload.filename, upload.file_type, error)
 
-    async def _analyze_ep_publication(self, reference) -> AnalysisDraft:
+    async def _analyze_ep_publication(
+        self,
+        reference,
+        *,
+        cancellation: AnalysisCancellation | None = None,
+    ) -> tuple[AnalysisDraft, PatentReference]:
         attempted: list[str] = []
         last_error: PatentServiceError | None = None
         for kind_code in _ep_application_kinds(reference.kind_code):
+            if cancellation:
+                cancellation.raise_if_cancelled()
             attempted.append(kind_code)
             candidate = _ep_reference_with_kind(reference, kind_code)
             logger.info(
@@ -200,7 +279,10 @@ class PatentAnalysisService:
                 reference.normalized_number,
                 kind_code,
             )
-            ops_draft = await self._analyze_epo_ops(candidate)
+            ops_draft = await self._analyze_epo_ops(
+                candidate,
+                cancellation=cancellation,
+            )
             archive_started_at = time.monotonic()
             archive_url = self._epo_publication_server_client.build_archive_download_url(
                 country_code=candidate.country_code,
@@ -219,6 +301,8 @@ class PatentAnalysisService:
                     doc_number=candidate.doc_number,
                     kind_code=kind_code,
                 )
+                if cancellation:
+                    cancellation.raise_if_cancelled()
             except PatentServiceError as exc:
                 if exc.code is ErrorCode.ORIGINAL_FILE_NOT_AVAILABLE:
                     logger.info(
@@ -252,7 +336,8 @@ class PatentAnalysisService:
                     candidate.normalized_number,
                     path.name,
                 )
-                archive_draft = await asyncio.to_thread(
+                archive_draft = await _to_thread_cancellable(
+                    cancellation,
                     self._structured_parser.parse,
                     path,
                     source="epo",
@@ -263,7 +348,7 @@ class PatentAnalysisService:
                     "patent analysis step patent_number=%s source=epo step=official_source_merge action=complete text_source_priority=OPS drawing_source=Publication_Server_ZIP",
                     candidate.normalized_number,
                 )
-                return merged
+                return merged, candidate
         raise PatentServiceError(
             code=ErrorCode.ORIGINAL_FILE_NOT_AVAILABLE,
             status_code=404,
@@ -276,8 +361,38 @@ class PatentAnalysisService:
             },
         )
 
+    async def _prepare_ep_pdf(
+        self,
+        reference: PatentReference,
+        workspace: Path,
+        *,
+        cancellation: AnalysisCancellation | None = None,
+    ) -> Path | None:
+        try:
+            payload = await self._epo_publication_server_client.download_pdf(
+                country_code=reference.country_code,
+                doc_number=reference.doc_number,
+                kind_code=reference.kind_code or "",
+            )
+            if cancellation:
+                cancellation.raise_if_cancelled()
+            path = workspace / f"{reference.normalized_number}.pdf"
+            await asyncio.to_thread(path.write_bytes, payload)
+            return path
+        except PatentServiceError as exc:
+            logger.warning(
+                "patent analysis original PDF preparation deferred patent_number=%s source=epo code=%s message=%s",
+                reference.normalized_number,
+                exc.code,
+                exc.message,
+            )
+            return None
+
     async def _analyze_epo_ops(
-        self, reference: PatentReference
+        self,
+        reference: PatentReference,
+        *,
+        cancellation: AnalysisCancellation | None = None,
     ) -> AnalysisDraft | None:
         if self._epo_ops_client is None:
             logger.info(
@@ -317,6 +432,8 @@ class PatentAnalysisService:
                 constituent="claims",
             ),
         )
+        if cancellation:
+            cancellation.raise_if_cancelled()
         publication_language: str | None = None
         if biblio:
             try:
@@ -374,6 +491,41 @@ class PatentAnalysisService:
             int((time.monotonic() - ops_started_at) * 1000),
         )
         return draft if available else None
+
+
+async def _to_thread_cancellable(
+    cancellation: AnalysisCancellation | None,
+    function,
+    /,
+    *args,
+    **kwargs,
+):
+    def run():
+        with cancellation_scope(cancellation):
+            if cancellation:
+                cancellation.raise_if_cancelled()
+            result = function(*args, **kwargs)
+            if cancellation:
+                cancellation.raise_if_cancelled()
+            return result
+
+    return await asyncio.to_thread(run)
+
+
+async def _lookup_full_in_workspace(
+    service: PatentLookupService,
+    request: PatentLookupRequest,
+    workspace: Path,
+):
+    full_lookup = getattr(service, "lookup_patent_full", None)
+    if full_lookup is None:
+        full_lookup = service.lookup_patent
+    try:
+        return await full_lookup(request, storage_dir=workspace)
+    except TypeError as exc:
+        if "storage_dir" not in str(exc):
+            raise
+        return await full_lookup(request)
 
 
 async def _optional_epo_xml(

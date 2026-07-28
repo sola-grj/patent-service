@@ -53,9 +53,32 @@ class WipoPatentScopeRestClient:
             settings.wipo_storage_dir
             or Path(tempfile.gettempdir()) / "patent-service" / "wipo"
         )
+        self._request_client = httpx.AsyncClient(
+            base_url=self._settings.wipo_patentscope_rest_base_url.rstrip("/"),
+            auth=httpx.BasicAuth(
+                self._settings.wipo_patentscope_username or "",
+                self._settings.wipo_patentscope_password or "",
+            ),
+            headers={"Cookie": "OBBasicAuth=fromDialog"},
+            transport=self._transport,
+            timeout=self._settings.request_timeout_seconds,
+            follow_redirects=True,
+        )
+
+    async def warmup(self) -> None:
+        """Establish the TLS/authenticated connection without looking up a patent."""
+        try:
+            await self._request_client.head("/")
+        except httpx.RequestError:
+            # A real lookup still maps connection errors into a source-aware error.
+            return
 
     async def lookup_patent(
-        self, reference: PatentReference, *, include_original_file: bool
+        self,
+        reference: PatentReference,
+        *,
+        include_original_file: bool,
+        storage_dir: Path | None = None,
     ) -> PatentLookupResponse:
         self._ensure_configured()
         rest_number = to_wipo_rest_number(reference)
@@ -126,7 +149,7 @@ class WipoPatentScopeRestClient:
                     source="wipo",
                 )
             original_file, original_file_refs = await self._download_original(
-                reference, selected_document
+                reference, selected_document, storage_dir=storage_dir
             )
 
         publication_reference = content_metrics.get("publication_reference") or iasr_refs.get(
@@ -196,6 +219,49 @@ class WipoPatentScopeRestClient:
             raw_source_refs=raw_source_refs,
         )
 
+    async def lookup_bibliographic(
+        self, reference: PatentReference
+    ) -> PatentLookupResponse:
+        """Return the fastest WIPO bibliographic view using IASR only."""
+        self._ensure_configured()
+        rest_number = to_wipo_rest_number(reference)
+        request_path = f"/pct-publications/{rest_number}/ia-status-report"
+        response = await self._request(request_path, accept="application/json")
+        payload = self._json_response(response)
+        basic_info, refs = parse_iasr_payload(payload)
+        publication_reference = refs.get("publication_reference", {})
+        application_reference = refs.get("application_reference", {})
+        return PatentLookupResponse(
+            source=reference.source,
+            normalized_number=reference.normalized_number,
+            display_number=reference.display_number,
+            basic_info=basic_info,
+            application_date=application_reference.get("date") or None,
+            application_no=basic_info.application_number or None,
+            publication_date=basic_info.publication_date or None,
+            publication_no=reference.display_number,
+            agents=basic_info.representatives,
+            priority_data=refs.get("priority_data", []),
+            publication_language=refs.get("publication_language") or None,
+            filing_language=refs.get("filing_language") or None,
+            designated_states=refs.get("designated_states")
+            or PatentDesignatedStates(),
+            abstract_words=count_words(basic_info.abstract),
+            original_file=PatentOriginalFile(),
+            raw_source_refs={
+                "lookup_mode": "rest_quick",
+                "rest_number": rest_number,
+                "iasr_request": request_path,
+                "publication_reference": publication_reference,
+                "application_reference": application_reference,
+                "title_language": refs.get("title_language"),
+                "abstract_language": refs.get("abstract_language"),
+                "first_priority_date": refs.get("first_priority_date"),
+                "representatives_raw": refs.get("representatives_raw", []),
+                "field_sources": {"bibliographic": "wipo_iasr"},
+            },
+        )
+
     def _ensure_configured(self) -> None:
         if self._settings.wipo_rest_configured:
             return
@@ -213,27 +279,16 @@ class WipoPatentScopeRestClient:
         )
 
     async def _request(self, path: str, *, accept: str) -> httpx.Response:
-        headers = {"Accept": accept, "Cookie": "OBBasicAuth=fromDialog"}
-        auth = httpx.BasicAuth(
-            self._settings.wipo_patentscope_username or "",
-            self._settings.wipo_patentscope_password or "",
-        )
         last_response: httpx.Response | None = None
         try:
-            async with httpx.AsyncClient(
-                base_url=self._settings.wipo_patentscope_rest_base_url.rstrip("/"),
-                auth=auth,
-                headers=headers,
-                transport=self._transport,
-                timeout=self._settings.request_timeout_seconds,
-                follow_redirects=True,
-            ) as client:
-                for attempt in range(3):
-                    response = await client.get(path)
-                    last_response = response
-                    if response.status_code not in {500, 502, 503} or attempt == 2:
-                        break
-                    await asyncio.sleep(0.25 * (2**attempt))
+            for attempt in range(3):
+                response = await self._request_client.get(
+                    path, headers={"Accept": accept}
+                )
+                last_response = response
+                if response.status_code not in {500, 502, 503} or attempt == 2:
+                    break
+                await asyncio.sleep(0.25 * (2**attempt))
         except httpx.RequestError as exc:
             raise PatentServiceError(
                 code=ErrorCode.SOURCE_UNAVAILABLE,
@@ -276,7 +331,11 @@ class WipoPatentScopeRestClient:
         return payload
 
     async def _download_original(
-        self, reference: PatentReference, document: WipoRestDocument
+        self,
+        reference: PatentReference,
+        document: WipoRestDocument,
+        *,
+        storage_dir: Path | None = None,
     ) -> tuple[PatentOriginalFile, dict[str, Any]]:
         path = f"/documents/{document.document_id}"
         headers = {
@@ -313,8 +372,9 @@ class WipoPatentScopeRestClient:
                     archive_content_type = response.headers.get(
                         "Content-Type", "application/zip"
                     ).split(";", 1)[0]
-                    self._storage_dir.mkdir(parents=True, exist_ok=True)
-                    archive_path = self._storage_dir / archive_filename
+                    output_dir = storage_dir or self._storage_dir
+                    output_dir.mkdir(parents=True, exist_ok=True)
+                    archive_path = output_dir / archive_filename
                     partial_path = archive_path.with_suffix(
                         archive_path.suffix + ".part"
                     )
@@ -343,7 +403,8 @@ class WipoPatentScopeRestClient:
                 details={"error": str(exc), "path": path},
             ) from exc
         pdf_filename = f"{reference.normalized_number}.pdf"
-        pdf_path = self._storage_dir / pdf_filename
+        output_dir = storage_dir or self._storage_dir
+        pdf_path = output_dir / pdf_filename
         try:
             ordered_pages = await asyncio.to_thread(
                 convert_wipo_zip_to_pdf, archive_path, pdf_path
@@ -408,6 +469,16 @@ def parse_iasr_payload(
     applicants = _json_party_names(parties, "applicants", "applicant")
     inventors = _json_party_names(parties, "inventors", "inventor")
     representatives, representatives_raw = _json_representatives(parties)
+    ipc = _json_classifications(
+        biblio,
+        group_names=("classifications-ipcr", "classifications-ipc"),
+        item_names=("classification-ipcr", "classification-ipc"),
+    )
+    cpc = _json_classifications(
+        biblio,
+        group_names=("classifications-cpc",),
+        item_names=("classification-cpc",),
+    )
     priority = _nested_value(biblio, "date-of-earliest-priority")
     first_priority_date = ""
     if isinstance(priority, dict):
@@ -427,6 +498,8 @@ def parse_iasr_payload(
             applicants=applicants,
             inventors=inventors,
             representatives=representatives,
+            ipc=ipc,
+            cpc=cpc,
         ),
         {
             "publication_reference": publication_ref,
@@ -826,7 +899,64 @@ def _json_representatives(
 def _addressbooks(value: dict[str, Any]) -> list[dict[str, Any]]:
     raw = value.get("addressbook") or value.get("address-book") or []
     raw = raw if isinstance(raw, list) else [raw]
-    return [item for item in raw if isinstance(item, dict)]
+    addressbooks: list[dict[str, Any]] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        content = item.get("content")
+        if not isinstance(content, list):
+            addressbooks.append(item)
+            continue
+        flattened = {
+            key: child
+            for entry in content
+            if isinstance(entry, dict)
+            for key, child in entry.items()
+        }
+        addressbooks.append({**item, **flattened})
+    return addressbooks
+
+
+def _json_classifications(
+    biblio: dict[str, Any],
+    *,
+    group_names: tuple[str, ...],
+    item_names: tuple[str, ...],
+) -> list[str]:
+    values: list[str] = []
+    for group_name in group_names:
+        group = biblio.get(group_name)
+        if not isinstance(group, dict):
+            continue
+        items: Any = None
+        for item_name in item_names:
+            if item_name in group:
+                items = group[item_name]
+                break
+        items = items if isinstance(items, list) else [items]
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            text = item.get("text")
+            if text:
+                value = normalize_text(str(text))
+            else:
+                class_value = item.get("class") or ""
+                if isinstance(class_value, dict):
+                    class_value = class_value.get("value") or ""
+                section_class = (
+                    f"{item.get('section') or ''}{class_value}"
+                    f"{item.get('subclass') or ''}"
+                )
+                group_value = str(item.get("main-group") or "")
+                subgroup = str(item.get("subgroup") or "")
+                value = normalize_text(
+                    f"{section_class} "
+                    f"{group_value}{'/' + subgroup if subgroup else ''}"
+                )
+            if value and value not in values:
+                values.append(value)
+    return values
 
 
 def _addressbook_name(addressbook: dict[str, Any]) -> str:

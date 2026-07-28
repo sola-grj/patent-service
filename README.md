@@ -42,11 +42,30 @@ PATENT_SERVICE_WIPO_PATENTSCOPE_SERVICE_URL=<SOAP service or WSDL URL>
 
 Credentials must be injected through the runtime environment and must not be committed. `GET /api/health` reports separate `wipo_rest_configured` and `wipo_soap_configured` flags without exposing credentials.
 
+Submitted-Request cache and service authentication:
+
+```text
+PATENT_SERVICE_SUPABASE_URL
+PATENT_SERVICE_SUPABASE_SECRET_KEY
+PATENT_SERVICE_API_KEY
+PATENT_SERVICE_RECEIPT_TTL_SECONDS=86400
+PATENT_SERVICE_ANALYSIS_ARTIFACT_TTL_SECONDS=86400
+PATENT_SERVICE_ANALYSIS_ARTIFACT_CLEANUP_INTERVAL_SECONDS=300
+# Optional; defaults to the OS temporary directory:
+PATENT_SERVICE_ANALYSIS_ARTIFACT_DIR
+```
+
+`PATENT_SERVICE_API_KEY` must equal the filing application's key of the same
+name. The Supabase key must be a server-side secret key.
+
 ## API
 
 - `GET /api/health`
 - `POST /api/patents/lookup`
 - `POST /api/patents/analyze`
+- `POST /api/patents/receipts/verify` (service authentication)
+- `POST /api/patents/cache` (service authentication)
+- `GET /api/patents/cache/requests/{request_id}/file` (service authentication)
 
 ```json
 {
@@ -75,6 +94,14 @@ top level with the same shape:
 
 Unavailable upstream values are represented by empty lists or `null`; they are
 not inferred.
+
+Interactive lookup is deliberately small: EP calls only OPS `biblio`, and WO
+calls only PATENTSCOPE `ia-status-report`. An official result is returned with
+`data_origin: "official"` immediately. Only a definitive official
+`source_no_result` may read a submitted-Request cache snapshot; that response
+uses `data_origin: "cache_fallback"` and carries cache age metadata. Source
+timeouts, authentication failures, rate limits and 5xx responses never use the
+cache fallback.
 
 ## Five-part word analysis
 
@@ -178,7 +205,15 @@ language of filing, and designated states when those values are available.
 
 ## WIPO REST flow
 
-The service converts a normalized four-digit-year WO number to the REST form, for example `WO2025078629A1` to `WO25078629`, then calls:
+The interactive lookup converts a normalized four-digit-year WO number to the
+REST form, for example `WO2025078629A1` to `WO25078629`, and calls only:
+
+```text
+GET /pct-publications/{number}/ia-status-report
+```
+
+Background analysis and submitted-Request original-file preparation use the
+expanded flow:
 
 ```text
 GET /pct-publications/{number}/ia-status-report
@@ -187,6 +222,33 @@ GET /documents/{documentId}/pages
 GET /documents/{documentId}/pages/{pageId}
 GET /documents/{documentId}                 # only when include_original_file=true
 ```
+
+The analysis endpoint monitors client disconnects. Re-searching, navigating
+away, refreshing, or aborting the browser request propagates cancellation into
+the parser and OCR batches. Pending OCR work is cancelled, temporary files are
+cleaned up, and no cancelled result is published. An inference already running
+inside ONNX/Tesseract is allowed to finish its current page before its worker is
+reused; remaining pages are not processed.
+
+Patent-number analysis downloads and prepares the original publication in the
+same background operation as five-part counting. The resulting PDF is copied
+to a short-lived server-side artifact directory and the signed analysis receipt
+contains only its opaque ID, checksum and expiry metadata, never a local path.
+WIPO ZIP/PDF workspaces and EPO publication ZIP workspaces are per-analysis
+temporary directories and are removed on success, failure or cancellation.
+
+After a Request and quote are formally submitted, `POST /api/patents/cache`
+promotes the verified analysis artifact into the private `patent-originals`
+bucket, links `patent_documents` and `request_files`, and removes the temporary
+artifact. Drafts never promote files. Expired or process-lost artifacts use one
+official-source re-download after formal submission as a recovery fallback.
+Expired artifacts for abandoned wizards are removed by the periodic cleanup
+task.
+
+IASR `parties.agents` and `classifications-ipcr` are mapped directly into
+`agents` and `basic_info.ipc`. WIPO IASR does not expose CPC, so interactive WO
+lookup leaves CPC empty instead of adding another source call. EPO OPS `biblio`
+maps its available agents/representatives, IPC and CPC directly.
 
 Requests use HTTP Basic Authentication and `Cookie: OBBasicAuth=fromDialog`. Metadata responses use JSON; the selected `wo-published-application.xml` and original document use `application/octet-stream`.
 
@@ -203,7 +265,10 @@ PATENTSCOPE REST does not define CPC in the supplied schema. When CPC is empty a
 
 When `include_original_file=false`, the service fetches only the lightweight publication XML. When true, it saves the official WIPO document ZIP, orders its TIFF pages using `Pag.lst`, and creates an image-only PDF. `original_file` points to that generated PDF and exposes a relative download URL such as `/api/patents/files/WO2026044310A1.pdf`. The source ZIP remains available in `raw_source_refs.original_archive`; `raw_source_refs.generated_pdf.official_pdf` is always `false` because this is a service-generated rendition, not an official PDF supplied by WIPO.
 
-Generated files are stored under the system temporary directory by default. Set `PATENT_SERVICE_WIPO_STORAGE_DIR` to use a persistent directory.
+Direct full-lookup callers use the system temporary WIPO directory by default
+or `PATENT_SERVICE_WIPO_STORAGE_DIR` when configured. The product analysis and
+submitted-Request cache paths override this with isolated temporary workspaces,
+so abandoned searches never leave files in that shared directory.
 
 ## WIPO document access
 

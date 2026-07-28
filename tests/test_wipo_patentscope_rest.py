@@ -9,6 +9,7 @@ from PIL import Image
 
 from app.clients.wipo_patentscope_rest import (
     WipoPatentScopeRestClient,
+    parse_iasr_payload,
     parse_published_application_xml,
     to_wipo_rest_number,
 )
@@ -134,6 +135,58 @@ def test_parse_pamphlet_fills_missing_fields_and_metrics():
     assert metrics["drawings"].drawing_labels == ["FIG. 1 shows the capsule."]
 
 
+def test_iasr_maps_nested_agent_content_and_ipc_classifications():
+    payload = {
+        "wo-bibliographic-data": {
+            "parties": {
+                "agents": {
+                    "agent": [
+                        {
+                            "addressbook": [
+                                {
+                                    "content": [
+                                        {
+                                            "name": {
+                                                "value": "PUCHBERGER & PARTNER",
+                                                "name-type": "legal",
+                                            }
+                                        },
+                                        {
+                                            "address": {
+                                                "address-1": "Reichsratsstrasse 13",
+                                                "postcode": "1010",
+                                                "country": "AT",
+                                            }
+                                        },
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
+            "classifications-ipcr": {
+                "classification-ipcr": [
+                    {
+                        "section": "A",
+                        "class": {"value": "61"},
+                        "subclass": "K",
+                        "main-group": "9",
+                        "subgroup": "48",
+                    }
+                ]
+            },
+        }
+    }
+
+    info, _ = parse_iasr_payload(payload)
+
+    assert info.representatives[0].name == "PUCHBERGER & PARTNER"
+    assert info.representatives[0].address == "Reichsratsstrasse 13 1010"
+    assert info.representatives[0].country == "AT"
+    assert info.ipc == ["A61K 9/48"]
+
+
 def test_pamphlet_international_application_keeps_pct_prefix():
     payload = b"""\
     <wo-published-application>
@@ -199,6 +252,28 @@ def test_rest_lookup_uses_official_flow_without_downloading_zip(tmp_path: Path):
     assert len(requests) == 4
     assert all(request.headers["Cookie"] == "OBBasicAuth=fromDialog" for request in requests)
     assert all(request.headers["Authorization"].startswith("Basic ") for request in requests)
+
+
+def test_quick_bibliographic_lookup_calls_only_iasr(tmp_path: Path):
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.path.endswith("/ia-status-report"):
+            return httpx.Response(200, json=IASR)
+        raise AssertionError(f"Unexpected quick lookup call: {request.url.path}")
+
+    client = WipoPatentScopeRestClient(
+        _settings(), transport=httpx.MockTransport(handler), storage_dir=tmp_path
+    )
+    response = asyncio.run(client.lookup_bibliographic(_reference()))
+
+    assert response.data_origin == "official"
+    assert response.basic_info.title == "REST TITLE"
+    assert response.original_file.available is False
+    assert [request.url.path for request in requests] == [
+        "/patentscope-api/v1/pct-publications/WO25078629/ia-status-report"
+    ]
 
 
 def test_rest_lookup_converts_official_zip_to_pdf_when_requested(tmp_path: Path):

@@ -9,12 +9,12 @@ from app.models.patents import PatentAnalysisResponse
 
 
 class StubAnalysisService:
-    async def analyze_patent(self, patent_number: str):
+    async def analyze_patent(self, patent_number: str, *, cancellation=None):
         return PatentAnalysisResponse(
             input_mode="patent_number", status="success", patent_number=patent_number
         )
 
-    def analyze_uploads(self, uploads):
+    def analyze_uploads(self, uploads, *, cancellation=None):
         return PatentAnalysisResponse(input_mode="upload", status="success")
 
 

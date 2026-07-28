@@ -5,7 +5,7 @@ import os
 import shutil
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
@@ -13,6 +13,7 @@ from typing import Protocol
 from PIL import Image, ImageEnhance, ImageOps
 
 from app.analysis.languages import normalize_ocr_language, tesseract_language
+from app.analysis.cancellation import current_cancellation, raise_if_cancelled
 from app.config import Settings
 
 logger = logging.getLogger("patent_service")
@@ -53,6 +54,7 @@ def recognize_many(
     language: str | None = None,
 ) -> list[OcrResult]:
     """Use backend batching when available and preserve a stub-safe fallback."""
+    raise_if_cancelled()
     method = getattr(engine, "recognize_many", None)
     if callable(method):
         return method(images, sparse=sparse, language=language)
@@ -90,6 +92,7 @@ class TesseractOcrEngine:
         sparse: bool = False,
         language: str | None = None,
     ) -> OcrResult:
+        raise_if_cancelled()
         try:
             import pytesseract
             from pytesseract import Output
@@ -163,12 +166,14 @@ class TesseractOcrEngine:
             if numeric_confidence >= 0:
                 confidences.append(numeric_confidence)
         average = sum(confidences) / len(confidences) if confidences else None
-        return OcrResult(
+        result = OcrResult(
             text="\n".join(" ".join(words) for words in lines.values()),
             confidence=average,
             language=language,
             provider="tesseract",
         )
+        raise_if_cancelled()
+        return result
 
     def recognize_many(
         self,
@@ -177,10 +182,12 @@ class TesseractOcrEngine:
         sparse: bool = False,
         language: str | None = None,
     ) -> list[OcrResult]:
-        return [
+        results = [
             self.recognize(image, sparse=sparse, language=language)
             for image in images
         ]
+        raise_if_cancelled()
+        return results
 
 
 _RAPID_V5_LANGUAGES = {
@@ -226,9 +233,17 @@ class RapidOcrEngine:
         sparse: bool = False,
         language: str | None = None,
     ) -> OcrResult:
-        return self._executor.submit(
-            self._recognize_worker, image_bytes, sparse, language
-        ).result()
+        cancellation = current_cancellation()
+        if cancellation:
+            cancellation.raise_if_cancelled()
+        future = self._executor.submit(
+            self._recognize_worker_with_cancellation,
+            cancellation,
+            image_bytes,
+            sparse,
+            language,
+        )
+        return _wait_for_ocr_future(future, cancellation)
 
     def recognize_many(
         self,
@@ -252,11 +267,32 @@ class RapidOcrEngine:
             self._model_specification(selected_language)[0],
             self._settings.rapidocr_engine,
         )
+        cancellation = current_cancellation()
+        if cancellation:
+            cancellation.raise_if_cancelled()
         futures = [
-            self._executor.submit(self._recognize_worker, image, sparse, language)
+            self._executor.submit(
+                self._recognize_worker_with_cancellation,
+                cancellation,
+                image,
+                sparse,
+                language,
+            )
             for image in images
         ]
-        results = [future.result() for future in futures]
+        try:
+            results = [
+                _wait_for_ocr_future(future, cancellation)
+                for future in futures
+            ]
+        except BaseException:
+            for future in futures:
+                future.cancel()
+            logger.info(
+                "OCR engine batch cancelled provider=rapidocr images=%s",
+                len(images),
+            )
+            raise
         logger.info(
             "OCR engine batch finished provider=rapidocr images=%s recognized=%s warnings=%s elapsed_ms=%s",
             len(images),
@@ -265,6 +301,20 @@ class RapidOcrEngine:
             int((time.monotonic() - started_at) * 1000),
         )
         return results
+
+    def _recognize_worker_with_cancellation(
+        self,
+        cancellation,
+        image_bytes: bytes,
+        sparse: bool,
+        language: str | None,
+    ) -> OcrResult:
+        if cancellation:
+            cancellation.raise_if_cancelled()
+        result = self._recognize_worker(image_bytes, sparse, language)
+        if cancellation:
+            cancellation.raise_if_cancelled()
+        return result
 
     def preload(self, languages: list[str]) -> None:
         """Download and initialize each distinct configured model once."""
@@ -431,6 +481,7 @@ class AutoOcrEngine:
         sparse: bool = False,
         language: str | None = None,
     ) -> OcrResult:
+        raise_if_cancelled()
         backend = self._settings.ocr_backend
         if backend == "tesseract":
             return self._tesseract.recognize(
@@ -463,6 +514,7 @@ class AutoOcrEngine:
         sparse: bool = False,
         language: str | None = None,
     ) -> list[OcrResult]:
+        raise_if_cancelled()
         if not images:
             return []
         configured = self._settings.ocr_backend
@@ -511,7 +563,7 @@ class AutoOcrEngine:
                 fallback_count,
                 language or self._settings.ocr_default_language,
             )
-        return [
+        final_results = [
             result
             if not result.warnings
             else fallback.recognize(image, sparse=sparse, language=language)
@@ -519,7 +571,8 @@ class AutoOcrEngine:
             else result
             for image, result in zip(images, results)
         ]
-
+        raise_if_cancelled()
+        return final_results
     def diagnostics(self) -> dict[str, object]:
         tesseract_available = self._tesseract.is_available()
         rapidocr_available = self._rapidocr.is_available()
@@ -542,6 +595,17 @@ class AutoOcrEngine:
             "rapidocr_engine": self._settings.rapidocr_engine,
             "available": selected != "none",
         }
+
+
+def _wait_for_ocr_future(future, cancellation):
+    if cancellation is None:
+        return future.result()
+    while True:
+        cancellation.raise_if_cancelled()
+        try:
+            return future.result(timeout=0.1)
+        except FutureTimeoutError:
+            continue
 
 
 def _persistent_model_cache(provider: str) -> Path:

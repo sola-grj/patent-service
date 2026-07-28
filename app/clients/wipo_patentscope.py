@@ -49,7 +49,11 @@ class WipoPatentScopeClient:
         )
 
     async def lookup_patent(
-        self, reference: PatentReference, *, include_original_file: bool
+        self,
+        reference: PatentReference,
+        *,
+        include_original_file: bool,
+        storage_dir: Path | None = None,
     ) -> PatentLookupResponse:
         self._ensure_configured()
 
@@ -82,7 +86,10 @@ class WipoPatentScopeClient:
 
             content_payload = await self._fetch_document_content(selected_doc)
             original_file, file_refs = self.materialize_original_file(
-                reference, selected_doc, content_payload
+                reference,
+                selected_doc,
+                content_payload,
+                storage_dir=storage_dir,
             )
             raw_source_refs["available_documents_request"] = documents_call_ref
             raw_source_refs["available_documents"] = documents_refs
@@ -392,6 +399,8 @@ class WipoPatentScopeClient:
         reference: PatentReference,
         document: WipoDocumentRef,
         payload: Any,
+        *,
+        storage_dir: Path | None = None,
     ) -> tuple[PatentOriginalFile, dict[str, Any]]:
         binary_payload = _extract_binary_payload(payload)
         if binary_payload is None:
@@ -417,8 +426,9 @@ class WipoPatentScopeClient:
             or _default_filename(reference, document, content_type)
         )
 
-        self._storage_dir.mkdir(parents=True, exist_ok=True)
-        storage_path = self._storage_dir / filename
+        output_dir = storage_dir or self._storage_dir
+        output_dir.mkdir(parents=True, exist_ok=True)
+        storage_path = output_dir / filename
         storage_path.write_bytes(binary_payload)
 
         file_info = PatentOriginalFile(

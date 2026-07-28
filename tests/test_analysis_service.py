@@ -5,6 +5,7 @@ from pathlib import Path
 
 import httpx
 from app.analysis.common import AnalysisDraft
+from app.analysis.artifacts import AnalysisArtifactStore
 from app.analysis.ocr import OcrResult
 from app.analysis.service import PatentAnalysisService, _build_response
 from app.clients.epo_ops import EpoClaimsContent, EpoDescriptionContent
@@ -91,6 +92,44 @@ class WipoArchiveLookup:
         )
 
 
+class WorkspaceWipoLookup:
+    def __init__(self) -> None:
+        self.workspace: Path | None = None
+
+    async def lookup_patent_full(self, request, *, storage_dir: Path):
+        self.workspace = storage_dir
+        archive_path = storage_dir / "WO2026044310A1_PAMPH.zip"
+        pdf_path = storage_dir / "WO2026044310A1.pdf"
+        with zipfile.ZipFile(archive_path, "w") as archive:
+            archive.writestr(
+                "wo-published-application.xml",
+                "<wo-published-application>"
+                "<abstract><p>small cover</p></abstract>"
+                "<description><p>detailed body</p></description>"
+                "<claims><claim>one claim</claim></claims>"
+                "</wo-published-application>",
+            )
+        pdf_path.write_bytes(b"%PDF-prepared")
+        return PatentLookupResponse(
+            source=PatentSource.WIPO,
+            normalized_number="WO2026044310A1",
+            display_number="WO/2026/044310",
+            basic_info=PatentBasicInfo(),
+            original_file=PatentOriginalFile(
+                available=True,
+                content_type="application/pdf",
+                filename=pdf_path.name,
+                storage_path=str(pdf_path),
+            ),
+            raw_source_refs={
+                "original_archive": {
+                    "filename": archive_path.name,
+                    "storage_path": str(archive_path),
+                }
+            },
+        )
+
+
 def test_multi_file_aggregate_keeps_exact_duplicates_and_warns():
     left = AnalysisDraft(filename="one.docx", file_type="docx", sha256="same")
     right = AnalysisDraft(filename="two.docx", file_type="docx", sha256="same")
@@ -142,6 +181,29 @@ def test_wipo_patent_mode_uses_preserved_official_archive(
     assert "source=wipo step=pamphlet_zip action=download_complete" in caplog.text
     assert "source=wipo section=description decision=xml method=wipo_xml" in caplog.text
     assert "patent analysis completed patent_number=WO2026044310A1" in caplog.text
+
+
+def test_wipo_analysis_promotes_pdf_and_removes_source_workspace(tmp_path: Path):
+    lookup = WorkspaceWipoLookup()
+    store = AnalysisArtifactStore(
+        Settings(analysis_artifact_dir=str(tmp_path / "artifacts"))
+    )
+    service = PatentAnalysisService(
+        settings=Settings(analysis_artifact_dir=str(tmp_path / "artifacts")),
+        lookup_service=lookup,
+        epo_publication_server_client=EpoPublicationServerClient(
+            "https://example.test"
+        ),
+        artifact_store=store,
+        ocr=EmptyOcr(),
+    )
+
+    response = asyncio.run(service.analyze_patent("WO2026044310A1"))
+
+    assert response.artifact is not None
+    assert store.read_bytes(response.artifact) == b"%PDF-prepared"
+    assert lookup.workspace is not None
+    assert not lookup.workspace.exists()
 
 
 def test_wipo_patent_mode_does_not_return_misleading_partial_total_when_core_ocr_fails(

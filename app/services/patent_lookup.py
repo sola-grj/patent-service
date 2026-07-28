@@ -1,10 +1,14 @@
 import asyncio
 import calendar
 import logging
+import time
+import uuid
 from collections.abc import Awaitable, Callable
 from datetime import date
 from typing import Any, Protocol
+from pathlib import Path
 
+from app.cache.supabase import SupabasePatentCache
 from app.clients.epo_ops import EpoClaimsContent, EpoDescriptionContent, EpoOpsClient
 from app.clients.epo_publication_server import EpoPublicationServerClient
 from app.config import Settings
@@ -27,7 +31,11 @@ from app.utils.text_metrics import count_words
 
 class WipoLookupClient(Protocol):
     async def lookup_patent(
-        self, reference: PatentReference, *, include_original_file: bool
+        self,
+        reference: PatentReference,
+        *,
+        include_original_file: bool,
+        storage_dir: Path | None = None,
     ) -> PatentLookupResponse: ...
 
 
@@ -43,29 +51,229 @@ class PatentLookupService:
         epo_publication_server_client: EpoPublicationServerClient,
         wipo_rest_client: WipoLookupClient,
         wipo_soap_client: WipoLookupClient,
+        cache: SupabasePatentCache | None = None,
     ) -> None:
         self._settings = settings
         self._epo_ops_client = epo_ops_client
         self._epo_publication_server_client = epo_publication_server_client
         self._wipo_rest_client = wipo_rest_client
         self._wipo_soap_client = wipo_soap_client
+        self._cache = cache
 
     async def lookup_patent(
-        self, request: PatentLookupRequest
+        self, request: PatentLookupRequest, *, trace_id: str | None = None
     ) -> PatentLookupApiResponse:
         reference = normalize_patent_number(request.patent_number)
+        lookup_trace_id = trace_id or uuid.uuid4().hex
+        started_at = time.monotonic()
         logger.info(
-            "lookup normalized patent_number=%s source=%s normalized_number=%s include_original_file=%s",
+            "quick lookup normalized trace_id=%s patent_number=%s source=%s normalized_number=%s",
+            lookup_trace_id,
             request.patent_number,
             reference.source,
             reference.normalized_number,
-            request.include_original_file,
         )
+        try:
+            response = await self._lookup_official_quick(reference)
+        except PatentServiceError as exc:
+            if exc.code != ErrorCode.SOURCE_NO_RESULT:
+                await self._safe_record_lookup_event(
+                    trace_id=lookup_trace_id,
+                    query=request.patent_number,
+                    reference=reference,
+                    outcome="error",
+                    started_at=started_at,
+                    error=exc,
+                )
+                raise
+            await self._safe_record_lookup_event(
+                trace_id=lookup_trace_id,
+                query=request.patent_number,
+                reference=reference,
+                outcome="not_found",
+                started_at=started_at,
+                error=exc,
+            )
+            official_elapsed_ms = int((time.monotonic() - started_at) * 1000)
+            logger.info(
+                "quick lookup official no result trace_id=%s normalized_number=%s source=%s elapsed_ms=%s",
+                lookup_trace_id,
+                reference.normalized_number,
+                reference.source.value,
+                official_elapsed_ms,
+            )
+            cache_started_at = time.monotonic()
+            fallback = await self._read_cache_fallback(reference)
+            if fallback:
+                patent_id, cached_response = fallback
+                await self._safe_record_lookup_event(
+                    trace_id=lookup_trace_id,
+                    query=request.patent_number,
+                    reference=reference,
+                    outcome="success",
+                    started_at=cache_started_at,
+                    patent_id=patent_id,
+                    cache_status="stale_fallback",
+                )
+                logger.info(
+                    "quick lookup cache fallback trace_id=%s normalized_number=%s elapsed_ms=%s",
+                    lookup_trace_id,
+                    reference.normalized_number,
+                    int((time.monotonic() - started_at) * 1000),
+                )
+                return cached_response
+            await self._safe_record_lookup_event(
+                trace_id=lookup_trace_id,
+                query=request.patent_number,
+                reference=reference,
+                outcome="not_found",
+                started_at=cache_started_at,
+                cache_status="miss",
+            )
+            raise
+
+        await self._safe_record_lookup_event(
+            trace_id=lookup_trace_id,
+            query=request.patent_number,
+            reference=reference,
+            outcome="success",
+            started_at=started_at,
+        )
+        logger.info(
+            "quick lookup official result trace_id=%s normalized_number=%s elapsed_ms=%s",
+            lookup_trace_id,
+            reference.normalized_number,
+            int((time.monotonic() - started_at) * 1000),
+        )
+        return response
+
+    async def lookup_patent_full(
+        self,
+        request: PatentLookupRequest,
+        *,
+        storage_dir: Path | None = None,
+    ) -> PatentLookupApiResponse:
+        reference = normalize_patent_number(request.patent_number)
         if reference.source is PatentSource.EPO:
             return await self._lookup_ep(reference)
         return await self._lookup_wo(
-            reference, include_original_file=request.include_original_file
+            reference,
+            include_original_file=request.include_original_file,
+            storage_dir=storage_dir,
         )
+
+    async def _lookup_official_quick(
+        self, reference: PatentReference
+    ) -> PatentLookupApiResponse:
+        if reference.source is PatentSource.EPO:
+            return await self._lookup_ep_quick(reference)
+        lookup_bibliographic = getattr(
+            self._wipo_rest_client, "lookup_bibliographic", None
+        )
+        if lookup_bibliographic is None:
+            # Backward-compatible path for injected clients. The production REST
+            # client always implements IASR-only lookup_bibliographic.
+            return await self._lookup_wo(
+                reference,
+                include_original_file=False,
+            )
+        return await lookup_bibliographic(reference)
+
+    async def _lookup_ep_quick(
+        self, reference: PatentReference
+    ) -> PatentLookupEpResponse:
+        biblio_xml = await self._epo_ops_client.fetch_bibliographic_data(reference)
+        basic_info, refs = self._epo_ops_client.parse_bibliographic_data(biblio_xml)
+        publication_reference = refs.get("publication_reference", {})
+        application_reference = refs.get("application_reference", {})
+        first_priority_date = refs.get("first_priority_date")
+        return PatentLookupEpResponse(
+            source=PatentSource.EPO,
+            normalized_number=reference.normalized_number,
+            display_number=reference.display_number,
+            title=basic_info.title,
+            abstract=basic_info.abstract,
+            ipc=basic_info.ipc,
+            cpc=basic_info.cpc,
+            applicants=basic_info.applicants,
+            inventors=basic_info.inventors,
+            representatives=basic_info.representatives,
+            agents=basic_info.representatives,
+            priority_data=refs.get("priority_data", []),
+            publication_language=refs.get("publication_language") or None,
+            filing_language=refs.get("filing_language") or None,
+            designated_states=refs.get("designated_states")
+            or PatentDesignatedStates(),
+            language=refs.get("title_language") or refs.get("abstract_language"),
+            first_priority_date=first_priority_date,
+            filing_deadline_30_months=_add_months(first_priority_date, 30),
+            filing_deadline_31_months=_add_months(first_priority_date, 31),
+            application_date=application_reference.get("selected_date") or None,
+            application_no=application_reference.get("selected_number") or None,
+            publication_date=publication_reference.get("selected_date")
+            or basic_info.publication_date
+            or None,
+            publication_no=_resolve_publication_number(
+                reference, publication_reference
+            ),
+            abstract_words=count_words(basic_info.abstract),
+            raw_source_refs={
+                "lookup_mode": "ops_biblio_quick",
+                "ops_biblio": {
+                    "endpoint": self._epo_ops_client.build_biblio_path(reference),
+                    **refs,
+                },
+            },
+        )
+
+    async def _read_cache_fallback(
+        self, reference: PatentReference
+    ) -> tuple[str, PatentLookupApiResponse] | None:
+        if not self._cache or not self._cache.configured:
+            return None
+        try:
+            return await self._cache.find_lookup_fallback(reference)
+        except PatentServiceError as exc:
+            logger.warning(
+                "quick lookup cache fallback unavailable normalized_number=%s code=%s",
+                reference.normalized_number,
+                exc.code,
+            )
+            return None
+
+    async def _safe_record_lookup_event(
+        self,
+        *,
+        trace_id: str,
+        query: str,
+        reference: PatentReference,
+        outcome: str,
+        started_at: float,
+        patent_id: str | None = None,
+        cache_status: str | None = None,
+        error: PatentServiceError | None = None,
+    ) -> None:
+        if not self._cache or not self._cache.configured:
+            return
+        try:
+            await self._cache.record_lookup_event(
+                trace_id=trace_id,
+                query=query,
+                normalized_number=reference.normalized_number,
+                source=reference.source.value,
+                outcome=outcome,
+                elapsed_ms=int((time.monotonic() - started_at) * 1000),
+                patent_id=patent_id,
+                cache_status=cache_status,
+                error_code=error.code.value if error else None,
+                error_message=error.message if error else None,
+            )
+        except PatentServiceError as exc:
+            logger.warning(
+                "lookup event write failed trace_id=%s code=%s",
+                trace_id,
+                exc.code,
+            )
 
     async def _lookup_ep(self, reference: PatentReference) -> PatentLookupEpResponse:
         biblio_xml = await self._epo_ops_client.fetch_bibliographic_data(reference)
@@ -344,6 +552,7 @@ class PatentLookupService:
         reference: PatentReference,
         *,
         include_original_file: bool,
+        storage_dir: Path | None = None,
     ) -> PatentLookupResponse:
         mode = self._settings.wipo_lookup_mode
         logger.info(
@@ -355,20 +564,29 @@ class PatentLookupService:
             self._settings.wipo_soap_configured,
         )
         if mode == "rest":
-            response = await self._wipo_rest_client.lookup_patent(
-                reference, include_original_file=include_original_file
+            response = await _lookup_wipo_client(
+                self._wipo_rest_client,
+                reference,
+                include_original_file=include_original_file,
+                storage_dir=storage_dir,
             )
             return await self._complete_wo_response(response, reference)
         if mode == "soap":
-            response = await self._wipo_soap_client.lookup_patent(
-                reference, include_original_file=include_original_file
+            response = await _lookup_wipo_client(
+                self._wipo_soap_client,
+                reference,
+                include_original_file=include_original_file,
+                storage_dir=storage_dir,
             )
             return await self._complete_wo_response(response, reference)
 
         if not self._settings.wipo_rest_configured:
             if self._settings.wipo_soap_configured:
-                response = await self._wipo_soap_client.lookup_patent(
-                    reference, include_original_file=include_original_file
+                response = await _lookup_wipo_client(
+                    self._wipo_soap_client,
+                    reference,
+                    include_original_file=include_original_file,
+                    storage_dir=storage_dir,
                 )
                 return await self._complete_wo_response(response, reference)
             raise PatentServiceError(
@@ -379,8 +597,11 @@ class PatentLookupService:
             )
 
         try:
-            response = await self._wipo_rest_client.lookup_patent(
-                reference, include_original_file=include_original_file
+            response = await _lookup_wipo_client(
+                self._wipo_rest_client,
+                reference,
+                include_original_file=include_original_file,
+                storage_dir=storage_dir,
             )
         except PatentServiceError as exc:
             logger.warning(
@@ -399,8 +620,11 @@ class PatentLookupService:
                     "wo REST lookup falling back to SOAP normalized_number=%s",
                     reference.normalized_number,
                 )
-                response = await self._wipo_soap_client.lookup_patent(
-                    reference, include_original_file=include_original_file
+                response = await _lookup_wipo_client(
+                    self._wipo_soap_client,
+                    reference,
+                    include_original_file=include_original_file,
+                    storage_dir=storage_dir,
                 )
                 return await self._complete_wo_response(response, reference)
             raise
@@ -519,6 +743,24 @@ class PatentLookupService:
                 else count_words(response.basic_info.abstract),
             }
         )
+
+
+async def _lookup_wipo_client(
+    client: WipoLookupClient,
+    reference: PatentReference,
+    *,
+    include_original_file: bool,
+    storage_dir: Path | None,
+) -> PatentLookupResponse:
+    if storage_dir is None:
+        return await client.lookup_patent(
+            reference, include_original_file=include_original_file
+        )
+    return await client.lookup_patent(
+        reference,
+        include_original_file=include_original_file,
+        storage_dir=storage_dir,
+    )
 
 
 def _build_warning(*, code: str, field: str, message: str) -> PatentLookupWarning:

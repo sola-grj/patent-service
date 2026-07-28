@@ -23,6 +23,11 @@ class ErrorCode(StrEnum):
     SECTION_DETECTION_INCOMPLETE = "section_detection_incomplete"
     OCR_FAILED = "ocr_failed"
     ANALYSIS_TIMEOUT = "analysis_timeout"
+    ANALYSIS_CANCELLED = "analysis_cancelled"
+    ANALYSIS_ARTIFACT_UNAVAILABLE = "analysis_artifact_unavailable"
+    INVALID_RECEIPT = "invalid_receipt"
+    CACHE_UNAVAILABLE = "cache_unavailable"
+    SERVICE_AUTH_REQUIRED = "service_auth_required"
 
 
 class PatentServiceError(Exception):

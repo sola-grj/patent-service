@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     analysis_max_files: int = 5
     analysis_max_pdf_pages: int = 300
     analysis_timeout_seconds: float = 600.0
+    analysis_artifact_dir: str | None = None
+    analysis_artifact_ttl_seconds: int = 24 * 60 * 60
+    analysis_artifact_cleanup_interval_seconds: int = 5 * 60
     analysis_max_docx_entries: int = 5000
     analysis_max_docx_uncompressed_bytes: int = 200 * 1024 * 1024
     analysis_max_image_pixels: int = 50_000_000
@@ -45,6 +48,12 @@ class Settings(BaseSettings):
     ocr_timeout_seconds: float = 60.0
     tesseract_command: str | None = None
     libreoffice_command: str | None = None
+    supabase_url: str | None = None
+    supabase_secret_key: str | None = None
+    api_key: str | None = None
+    receipt_ttl_seconds: int = 24 * 60 * 60
+    cache_fresh_days: int = 7
+    cache_force_refresh_days: int = 30
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -74,6 +83,10 @@ class Settings(BaseSettings):
     def wipo_patentscope_configured(self) -> bool:
         """Backward-compatible alias for the SOAP client."""
         return self.wipo_soap_configured
+
+    @property
+    def patent_cache_configured(self) -> bool:
+        return bool(self.supabase_url and self.supabase_secret_key)
 
 
 @lru_cache(maxsize=1)

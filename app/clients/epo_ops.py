@@ -1,3 +1,4 @@
+import asyncio
 import re
 import time
 import xml.etree.ElementTree as ET
@@ -42,6 +43,15 @@ class EpoOpsClient:
         self._settings = settings
         self._access_token: str | None = None
         self._access_token_expires_at = 0.0
+        self._access_token_lock = asyncio.Lock()
+        self._http_client = httpx.AsyncClient(
+            base_url=self._settings.epo_ops_base_url,
+            follow_redirects=True,
+            timeout=self._settings.request_timeout_seconds,
+        )
+
+    async def warmup(self) -> None:
+        await self._get_access_token()
 
     async def fetch_bibliographic_data(self, reference: PatentReference) -> str:
         return await self._get_xml(
@@ -116,37 +126,32 @@ class EpoOpsClient:
     async def _get_xml(self, *, path: str, accept: str, source: str) -> str:
         token = await self._get_access_token()
         headers = {"Authorization": f"Bearer {token}", "Accept": accept}
-        async with httpx.AsyncClient(
-            base_url=self._settings.epo_ops_base_url,
-            follow_redirects=True,
-            timeout=self._settings.request_timeout_seconds,
-        ) as client:
-            response = await client.get(path, headers=headers)
+        response = await self._http_client.get(path, headers=headers)
         self._raise_for_error(response, source=source)
         return response.text
 
     async def _get_access_token(self) -> str:
         if self._access_token and time.time() < self._access_token_expires_at:
             return self._access_token
+        async with self._access_token_lock:
+            if self._access_token and time.time() < self._access_token_expires_at:
+                return self._access_token
 
-        if not self._settings.epo_ops_configured:
-            raise PatentServiceError(
-                code=ErrorCode.SOURCE_ACCESS_NOT_CONFIGURED,
-                status_code=503,
-                message="EPO OPS credentials are not configured.",
-                source="epo",
-                details={
-                    "required_env": [
-                        "PATENT_SERVICE_EPO_OPS_CONSUMER_KEY",
-                        "PATENT_SERVICE_EPO_OPS_CONSUMER_SECRET",
-                    ]
-                },
-            )
+            if not self._settings.epo_ops_configured:
+                raise PatentServiceError(
+                    code=ErrorCode.SOURCE_ACCESS_NOT_CONFIGURED,
+                    status_code=503,
+                    message="EPO OPS credentials are not configured.",
+                    source="epo",
+                    details={
+                        "required_env": [
+                            "PATENT_SERVICE_EPO_OPS_CONSUMER_KEY",
+                            "PATENT_SERVICE_EPO_OPS_CONSUMER_SECRET",
+                        ]
+                    },
+                )
 
-        async with httpx.AsyncClient(
-            follow_redirects=True, timeout=self._settings.request_timeout_seconds
-        ) as client:
-            response = await client.post(
+            response = await self._http_client.post(
                 self._settings.epo_ops_token_url,
                 data={"grant_type": "client_credentials"},
                 auth=(
@@ -156,36 +161,38 @@ class EpoOpsClient:
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
 
-        if response.status_code in {401, 403}:
-            raise PatentServiceError(
-                code=ErrorCode.SOURCE_AUTH_REQUIRED,
-                status_code=503,
-                message="EPO OPS authentication failed.",
-                source="epo",
-            )
-        if response.is_error:
-            raise PatentServiceError(
-                code=ErrorCode.SOURCE_UNAVAILABLE,
-                status_code=503,
-                message="EPO OPS token request failed.",
-                source="epo",
-                details={"status_code": response.status_code},
-            )
+            if response.status_code in {401, 403}:
+                raise PatentServiceError(
+                    code=ErrorCode.SOURCE_AUTH_REQUIRED,
+                    status_code=503,
+                    message="EPO OPS authentication failed.",
+                    source="epo",
+                )
+            if response.is_error:
+                raise PatentServiceError(
+                    code=ErrorCode.SOURCE_UNAVAILABLE,
+                    status_code=503,
+                    message="EPO OPS token request failed.",
+                    source="epo",
+                    details={"status_code": response.status_code},
+                )
 
-        payload = response.json()
-        access_token = payload.get("access_token")
-        expires_in = payload.get("expires_in")
-        if not access_token or not expires_in:
-            raise PatentServiceError(
-                code=ErrorCode.UPSTREAM_RESPONSE_INVALID,
-                status_code=502,
-                message="EPO OPS token response is missing required fields.",
-                source="epo",
-            )
+            payload = response.json()
+            access_token = payload.get("access_token")
+            expires_in = payload.get("expires_in")
+            if not access_token or not expires_in:
+                raise PatentServiceError(
+                    code=ErrorCode.UPSTREAM_RESPONSE_INVALID,
+                    status_code=502,
+                    message="EPO OPS token response is missing required fields.",
+                    source="epo",
+                )
 
-        self._access_token = str(access_token)
-        self._access_token_expires_at = time.time() + max(int(expires_in) - 30, 30)
-        return self._access_token
+            self._access_token = str(access_token)
+            self._access_token_expires_at = time.time() + max(
+                int(expires_in) - 30, 30
+            )
+            return self._access_token
 
     def _raise_for_error(self, response: httpx.Response, *, source: str) -> None:
         if response.status_code == 404:
