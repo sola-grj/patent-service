@@ -7,6 +7,9 @@
           <reg:publication-reference>
             <reg:document-id lang="en"><reg:country>EP</reg:country><reg:doc-number>1000000</reg:doc-number><reg:kind>A1</reg:kind></reg:document-id>
           </reg:publication-reference>
+          <reg:application-reference>
+            <reg:document-id document-id-type="epodoc"><reg:country>EP</reg:country><reg:doc-number>25188322</reg:doc-number><reg:date>20250709</reg:date></reg:document-id>
+          </reg:application-reference>
           <reg:language-of-filing>nl</reg:language-of-filing>
           <reg:priority-claims>
             <reg:priority-claim sequence="1" kind="national"><reg:country>NL</reg:country><reg:doc-number>19981010536</reg:doc-number><reg:date>19981112</reg:date></reg:priority-claim>

@@ -78,13 +78,16 @@ Accepted formats include:
 
 - `EP1234567A1`
 - `EP 1234567 A1`
+- `EP25188322.9` (European application number)
+- `EP 25 188 322.9`
+- `EP25188322` (EPODOC application-number form)
 - `WO2025078629A1`
 - `WO/2025/078629`
 - `WO 2025 078629 A1`
 - `PCT/AT2025/060357`
 - `PCTAT2025060357`
 
-EP publication, WO publication, and PCT international-application lookup
+EP publication, EP application, WO publication, and PCT international-application lookup
 responses expose the following bibliographic fields at the top level with the
 same shape:
 

@@ -77,6 +77,9 @@ def test_parse_register_bibliographic_data():
 
     assert refs["agents"][0].name == "Example EP Agent"
     assert refs["agents"][0].country == "NL"
+    assert refs["publication_reference"]["selected_number"] == "EP1000000A1"
+    assert refs["application_reference"]["selected_number"] == "EP25188322"
+    assert refs["application_reference"]["selected_date"] == "20250709"
     assert refs["priority_data"][0].number == "19981010536"
     assert refs["publication_language"] == "EN"
     assert refs["filing_language"] == "NL"

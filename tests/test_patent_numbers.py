@@ -29,6 +29,26 @@ def test_normalize_ep_publication_number():
     assert reference.source is PatentSource.EPO
     assert reference.normalized_number == "EP1234567A1"
     assert reference.lookup_number == "EP1234567.A1"
+    assert reference.reference_type == "publication"
+
+
+@pytest.mark.parametrize(
+    ("value", "normalized_number"),
+    [
+        ("EP25188322.9", "EP25188322.9"),
+        ("EP 25 188 322.9", "EP25188322.9"),
+        ("EP25188322", "EP25188322"),
+    ],
+)
+def test_normalize_ep_application_number(value: str, normalized_number: str):
+    reference = normalize_patent_number(value)
+
+    assert reference.source is PatentSource.EPO
+    assert reference.normalized_number == normalized_number
+    assert reference.display_number == normalized_number
+    assert reference.doc_number == "25188322"
+    assert reference.lookup_number == "EP25188322"
+    assert reference.reference_type == "application"
 
 
 def test_build_ep_publication_server_pdf_url():
@@ -352,6 +372,180 @@ class StubEpoCpcClient(StubEpoOpsClient):
     def parse_bibliographic_data(self, xml_text: str):
         info, refs = super().parse_bibliographic_data(xml_text)
         return info.model_copy(update={"cpc": ["A47K 3/022"]}), refs
+
+
+class StubEpoApplicationOpsClient(StubEpoOpsClient):
+    def __init__(self) -> None:
+        self.requests: list[tuple[str, str, str]] = []
+
+    async def fetch_register_bibliographic_data(
+        self, reference: PatentReference
+    ) -> str:
+        self.requests.append(
+            ("register", reference.reference_type, reference.lookup_number)
+        )
+        return "<application-register />"
+
+    async def fetch_bibliographic_data(self, reference: PatentReference) -> str:
+        self.requests.append(
+            ("biblio", reference.reference_type, reference.lookup_number)
+        )
+        return "<publication-biblio />"
+
+    async def fetch_description_data(self, reference: PatentReference) -> str:
+        self.requests.append(
+            ("description", reference.reference_type, reference.lookup_number)
+        )
+        return "<unused />"
+
+    async def fetch_claims_data(self, reference: PatentReference) -> str:
+        self.requests.append(
+            ("claims", reference.reference_type, reference.lookup_number)
+        )
+        return "<unused />"
+
+    async def fetch_images_metadata(self, reference: PatentReference) -> str:
+        self.requests.append(
+            ("images", reference.reference_type, reference.lookup_number)
+        )
+        return "<unused />"
+
+    async def fetch_family_bibliographic_data(
+        self, reference: PatentReference
+    ) -> str:
+        self.requests.append(
+            ("family", reference.reference_type, reference.lookup_number)
+        )
+        return "<unused />"
+
+    def parse_register_bibliographic_data(self, xml_text: str):
+        assert xml_text == "<application-register />"
+        return {
+            "publication_reference": {
+                "country": "EP",
+                "doc_number": "4686382",
+                "kind": "A1",
+                "selected_number": "EP4686382A1",
+                "selected_date": "20260204",
+            },
+            "application_reference": {
+                "country": "EP",
+                "doc_number": "25188322",
+                "selected_number": "EP25188322",
+                "selected_date": "20250709",
+            },
+            "agents": [],
+            "priority_data": [],
+            "designated_states": PatentDesignatedStates(),
+        }
+
+    def parse_bibliographic_data(self, xml_text: str):
+        assert xml_text == "<publication-biblio />"
+        info, refs = super().parse_bibliographic_data(xml_text)
+        return info.model_copy(
+            update={
+                "publication_date": "20260204",
+                "application_number": "EP25188322",
+            }
+        ), {
+            **refs,
+            "publication_reference": {
+                "country": "EP",
+                "doc_number": "4686382",
+                "kind": "A1",
+                "selected_number": "EP4686382A1",
+                "selected_date": "20260204",
+            },
+            "application_reference": {
+                "selected_number": "EP25188322",
+                "selected_date": "20250709",
+            },
+            "first_priority_date": "20240731",
+        }
+
+    def build_register_biblio_path(self, reference: PatentReference) -> str:
+        return (
+            f"/register/{reference.reference_type}/epodoc/"
+            f"{reference.lookup_number}/biblio"
+        )
+
+    def build_biblio_path(self, reference: PatentReference) -> str:
+        return (
+            f"/published-data/publication/epodoc/"
+            f"{reference.lookup_number}/biblio"
+        )
+
+
+def test_lookup_service_resolves_ep_application_number_to_publication():
+    epo_client = StubEpoApplicationOpsClient()
+    service = PatentLookupService(
+        settings=Settings(),
+        epo_ops_client=epo_client,
+        epo_publication_server_client=StubPublicationServerClient(),
+        wipo_rest_client=StubWipoRestClient(),
+        wipo_soap_client=StubWipoClient(),
+    )
+
+    response = asyncio.run(
+        service.lookup_patent(
+            PatentLookupRequest(
+                patent_number="EP25188322.9",
+                include_original_file=False,
+            )
+        )
+    )
+
+    assert response.normalized_number == "EP25188322.9"
+    assert response.display_number == "EP25188322.9"
+    assert response.application_no == "EP25188322"
+    assert response.application_date == "20250709"
+    assert response.publication_no == "EP4686382A1"
+    assert response.publication_date == "20260204"
+    assert response.first_priority_date == "20240731"
+    assert epo_client.requests == [
+        ("register", "application", "EP25188322"),
+        ("biblio", "publication", "EP4686382.A1"),
+    ]
+    assert response.raw_source_refs["ops_application_register"]["endpoint"] == (
+        "/register/application/epodoc/EP25188322/biblio"
+    )
+    assert response.raw_source_refs["ops_biblio"]["endpoint"] == (
+        "/published-data/publication/epodoc/EP4686382.A1/biblio"
+    )
+
+
+def test_full_lookup_uses_resolved_publication_for_ep_application_number():
+    epo_client = StubEpoApplicationOpsClient()
+    service = PatentLookupService(
+        settings=Settings(),
+        epo_ops_client=epo_client,
+        epo_publication_server_client=StubPublicationServerClient(),
+        wipo_rest_client=StubWipoRestClient(),
+        wipo_soap_client=StubWipoClient(),
+    )
+
+    response = asyncio.run(
+        service.lookup_patent_full(
+            PatentLookupRequest(
+                patent_number="EP25188322.9",
+                include_original_file=True,
+            )
+        )
+    )
+
+    assert response.normalized_number == "EP25188322.9"
+    assert response.publication_no == "EP4686382A1"
+    assert epo_client.requests[0] == (
+        "register",
+        "application",
+        "EP25188322",
+    )
+    assert all(
+        reference_type == "publication"
+        and lookup_number == "EP4686382.A1"
+        for _, reference_type, lookup_number in epo_client.requests[1:]
+    )
+
 
 def test_lookup_service_routes_ep_and_wo():
     service = PatentLookupService(

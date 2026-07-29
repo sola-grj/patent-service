@@ -5,6 +5,10 @@ from app.models.patents import PatentReference, PatentSource
 
 _SEPARATOR_PATTERN = re.compile(r"[\s./-]+")
 _EP_PATTERN = re.compile(r"^EP(?P<doc_number>\d{4,12})(?P<kind>[A-Z]\d{1,2})?$")
+_EP_APPLICATION_WITH_CHECK_PATTERN = re.compile(
+    r"^EP(?P<doc_number>\d{8})\.(?P<check_digit>\d)$"
+)
+_EP_APPLICATION_EPODOC_PATTERN = re.compile(r"^EP(?P<doc_number>\d{8})$")
 _WO_COMPACT_PATTERN = re.compile(
     r"^WO(?P<year>\d{4})(?P<serial>\d{6})(?P<kind>[A-Z]\d{1,2})?$"
 )
@@ -28,10 +32,19 @@ def normalize_patent_number(raw_value: str) -> PatentReference:
             message="Patent number must not be empty.",
         )
 
+    ep_value = re.sub(r"[\s/-]+", "", value)
+    if ep_value.startswith("EP"):
+        application_match = _EP_APPLICATION_WITH_CHECK_PATTERN.fullmatch(ep_value)
+        if application_match:
+            return _normalize_ep_application(application_match)
+
     compact = _SEPARATOR_PATTERN.sub("", value)
     if compact.startswith("PCT"):
         return _normalize_pct(value, compact)
     if compact.startswith("EP"):
+        application_match = _EP_APPLICATION_EPODOC_PATTERN.fullmatch(compact)
+        if application_match:
+            return _normalize_ep_application(application_match)
         return _normalize_ep(compact)
     if compact.startswith("WO") or value.startswith("WO/"):
         return _normalize_wo(value, compact)
@@ -73,6 +86,23 @@ def _normalize_ep(compact: str) -> PatentReference:
         doc_number=doc_number,
         kind_code=kind_code,
         lookup_number=lookup_number,
+    )
+
+
+def _normalize_ep_application(match: re.Match[str]) -> PatentReference:
+    doc_number = match.group("doc_number")
+    check_digit = match.groupdict().get("check_digit")
+    normalized_number = (
+        f"EP{doc_number}.{check_digit}" if check_digit else f"EP{doc_number}"
+    )
+    return PatentReference(
+        source=PatentSource.EPO,
+        normalized_number=normalized_number,
+        display_number=normalized_number,
+        country_code="EP",
+        doc_number=doc_number,
+        lookup_number=f"EP{doc_number}",
+        reference_type="application",
     )
 
 

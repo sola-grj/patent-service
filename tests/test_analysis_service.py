@@ -16,8 +16,10 @@ from app.models.patents import (
     PatentBasicInfo,
     PatentLookupResponse,
     PatentOriginalFile,
+    PatentReference,
     PatentSource,
 )
+from app.utils.patent_numbers import normalize_patent_number
 
 
 class EmptyOcr:
@@ -292,6 +294,55 @@ def test_epo_b_kind_resolves_to_a1_archive(tmp_path: Path):
 
     assert requested[0].endswith("/EP1234567NWA1/document.zip")
     assert response.files[0].filename == "EP1234567A1.zip"
+    assert response.aggregate.total_words == 6
+
+
+def test_epo_application_number_resolves_before_archive_download(tmp_path: Path):
+    xml = (
+        b"<ep-patent-document><abstract lang='en'><p>small cover</p></abstract>"
+        b"<description><p>detailed body</p></description>"
+        b"<claims><claim>one claim</claim></claims></ep-patent-document>"
+    )
+    archive_file = tmp_path / "application-package.zip"
+    with zipfile.ZipFile(archive_file, "w") as archive:
+        archive.writestr("EP.xml", xml)
+    package = archive_file.read_bytes()
+    requested: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requested.append(str(request.url))
+        if request.url.path.endswith("document.pdf"):
+            return httpx.Response(404)
+        return httpx.Response(200, content=package)
+
+    class ApplicationResolver:
+        def __init__(self) -> None:
+            self.requested: list[PatentReference] = []
+
+        async def resolve_ep_publication_reference(
+            self, reference: PatentReference
+        ) -> PatentReference:
+            self.requested.append(reference)
+            return normalize_patent_number("EP4686382A1")
+
+    resolver = ApplicationResolver()
+    service = PatentAnalysisService(
+        settings=Settings(),
+        lookup_service=resolver,
+        epo_publication_server_client=EpoPublicationServerClient(
+            "https://data.example/patents",
+            transport=httpx.MockTransport(handler),
+        ),
+        ocr=EmptyOcr(),
+    )
+
+    response = asyncio.run(service.analyze_patent("EP25188322.9"))
+
+    assert resolver.requested[0].reference_type == "application"
+    assert requested[0].endswith("/EP4686382NWA1/document.zip")
+    assert all("EP25188322NW" not in url for url in requested)
+    assert response.patent_number == "EP25188322.9"
+    assert response.files[0].filename == "EP4686382A1.zip"
     assert response.aggregate.total_words == 6
 
 

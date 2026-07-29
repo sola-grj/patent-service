@@ -162,6 +162,12 @@ class PatentLookupService:
             storage_dir=storage_dir,
         )
 
+    async def resolve_ep_publication_reference(
+        self, reference: PatentReference
+    ) -> PatentReference:
+        resolved, _ = await self._resolve_ep_publication_reference(reference)
+        return resolved
+
     async def _lookup_official_quick(
         self, reference: PatentReference
     ) -> PatentLookupApiResponse:
@@ -182,11 +188,25 @@ class PatentLookupService:
     async def _lookup_ep_quick(
         self, reference: PatentReference
     ) -> PatentLookupEpResponse:
-        biblio_xml = await self._epo_ops_client.fetch_bibliographic_data(reference)
+        lookup_reference, application_register_refs = (
+            await self._resolve_ep_publication_reference(reference)
+        )
+        biblio_xml = await self._epo_ops_client.fetch_bibliographic_data(
+            lookup_reference
+        )
         basic_info, refs = self._epo_ops_client.parse_bibliographic_data(biblio_xml)
         publication_reference = refs.get("publication_reference", {})
         application_reference = refs.get("application_reference", {})
         first_priority_date = refs.get("first_priority_date")
+        raw_source_refs: dict[str, Any] = {
+            "lookup_mode": "ops_biblio_quick",
+            "ops_biblio": {
+                "endpoint": self._epo_ops_client.build_biblio_path(lookup_reference),
+                **refs,
+            },
+        }
+        if application_register_refs:
+            raw_source_refs["ops_application_register"] = application_register_refs
         return PatentLookupEpResponse(
             source=PatentSource.EPO,
             normalized_number=reference.normalized_number,
@@ -214,16 +234,10 @@ class PatentLookupService:
             or basic_info.publication_date
             or None,
             publication_no=_resolve_publication_number(
-                reference, publication_reference
+                lookup_reference, publication_reference
             ),
             abstract_words=count_words(basic_info.abstract),
-            raw_source_refs={
-                "lookup_mode": "ops_biblio_quick",
-                "ops_biblio": {
-                    "endpoint": self._epo_ops_client.build_biblio_path(reference),
-                    **refs,
-                },
-            },
+            raw_source_refs=raw_source_refs,
         )
 
     async def _read_cache_fallback(
@@ -276,7 +290,12 @@ class PatentLookupService:
             )
 
     async def _lookup_ep(self, reference: PatentReference) -> PatentLookupEpResponse:
-        biblio_xml = await self._epo_ops_client.fetch_bibliographic_data(reference)
+        lookup_reference, application_register_refs = (
+            await self._resolve_ep_publication_reference(reference)
+        )
+        biblio_xml = await self._epo_ops_client.fetch_bibliographic_data(
+            lookup_reference
+        )
         basic_info, biblio_refs = self._epo_ops_client.parse_bibliographic_data(
             biblio_xml
         )
@@ -289,27 +308,33 @@ class PatentLookupService:
             register_result,
         ) = await asyncio.gather(
             self._fetch_optional_ep_xml(
-                reference, self._epo_ops_client.fetch_description_data
-            ),
-            self._fetch_optional_ep_xml(reference, self._epo_ops_client.fetch_claims_data),
-            self._fetch_optional_ep_xml(
-                reference, self._epo_ops_client.fetch_images_metadata
+                lookup_reference, self._epo_ops_client.fetch_description_data
             ),
             self._fetch_optional_ep_xml(
-                reference, self._epo_ops_client.fetch_family_bibliographic_data
+                lookup_reference, self._epo_ops_client.fetch_claims_data
             ),
             self._fetch_optional_ep_xml(
-                reference, self._epo_ops_client.fetch_register_bibliographic_data
+                lookup_reference, self._epo_ops_client.fetch_images_metadata
+            ),
+            self._fetch_optional_ep_xml(
+                lookup_reference,
+                self._epo_ops_client.fetch_family_bibliographic_data,
+            ),
+            self._fetch_optional_ep_xml(
+                lookup_reference,
+                self._epo_ops_client.fetch_register_bibliographic_data,
             ),
         )
 
         warnings: list[PatentLookupWarning] = []
         raw_source_refs: dict[str, Any] = {
             "ops_biblio": {
-                "endpoint": self._epo_ops_client.build_biblio_path(reference),
+                "endpoint": self._epo_ops_client.build_biblio_path(lookup_reference),
                 **biblio_refs,
             }
         }
+        if application_register_refs:
+            raw_source_refs["ops_application_register"] = application_register_refs
         drawings = PatentDrawingsInfo()
         description_words: int | None = None
         claims_count: int | None = None
@@ -325,7 +350,9 @@ class PatentLookupService:
                 register_result["xml_text"]
             )
             raw_source_refs["ops_register"] = {
-                "endpoint": self._epo_ops_client.build_register_biblio_path(reference),
+                "endpoint": self._epo_ops_client.build_register_biblio_path(
+                    lookup_reference
+                ),
                 **register_refs,
             }
 
@@ -336,7 +363,9 @@ class PatentLookupService:
                 )
             )
             raw_source_refs["ops_family"] = {
-                "endpoint": self._epo_ops_client.build_family_biblio_path(reference),
+                "endpoint": self._epo_ops_client.build_family_biblio_path(
+                    lookup_reference
+                ),
                 **family_refs,
             }
 
@@ -364,7 +393,9 @@ class PatentLookupService:
                 update={"drawing_labels": description_content.drawing_labels}
             )
             raw_source_refs["ops_description"] = {
-                "endpoint": self._epo_ops_client.build_description_path(reference),
+                "endpoint": self._epo_ops_client.build_description_path(
+                    lookup_reference
+                ),
                 **description_refs,
             }
 
@@ -390,7 +421,7 @@ class PatentLookupService:
             claims_count = claims_content.claims_count
             claims_words = count_words(" ".join(claims_content.claim_texts))
             raw_source_refs["ops_claims"] = {
-                "endpoint": self._epo_ops_client.build_claims_path(reference),
+                "endpoint": self._epo_ops_client.build_claims_path(lookup_reference),
                 **claims_refs,
             }
 
@@ -424,11 +455,11 @@ class PatentLookupService:
             )
             total_pages = image_refs.get("page_count")
             raw_source_refs["ops_images"] = {
-                "endpoint": self._epo_ops_client.build_images_path(reference),
+                "endpoint": self._epo_ops_client.build_images_path(lookup_reference),
                 **image_refs,
             }
             original_file_download_url = self._build_ep_download_url(
-                reference=reference,
+                reference=lookup_reference,
                 original_file=original_file,
                 publication_reference=image_refs.get("publication_reference", {}),
             )
@@ -450,7 +481,9 @@ class PatentLookupService:
 
         publication_reference = image_refs.get("publication_reference") or publication_reference
         application_reference = biblio_refs.get("application_reference", {})
-        publication_no = _resolve_publication_number(reference, publication_reference)
+        publication_no = _resolve_publication_number(
+            lookup_reference, publication_reference
+        )
         first_priority_date = biblio_refs.get("first_priority_date")
         deadline_base_date = first_priority_date or international_filing_date
         register_designated_states = register_refs.get("designated_states")
@@ -488,7 +521,7 @@ class PatentLookupService:
             or biblio_refs.get("designated_states")
             or PatentDesignatedStates(),
             related_patent_documents=_related_family_documents(
-                family_refs, reference
+                family_refs, lookup_reference
             ),
             language=biblio_refs.get("title_language")
             or biblio_refs.get("abstract_language"),
@@ -512,6 +545,55 @@ class PatentLookupService:
             warnings=warnings,
             raw_source_refs=raw_source_refs,
         )
+
+    async def _resolve_ep_publication_reference(
+        self, reference: PatentReference
+    ) -> tuple[PatentReference, dict[str, Any]]:
+        if reference.reference_type != "application":
+            return reference, {}
+
+        register_xml = await self._epo_ops_client.fetch_register_bibliographic_data(
+            reference
+        )
+        register_refs = self._epo_ops_client.parse_register_bibliographic_data(
+            register_xml
+        )
+        publication = register_refs.get("publication_reference", {})
+        country_code = publication.get("country") or "EP"
+        doc_number = publication.get("doc_number")
+        kind_code = publication.get("kind")
+        if not doc_number:
+            raise PatentServiceError(
+                code=ErrorCode.SOURCE_NO_RESULT,
+                status_code=404,
+                message=(
+                    "No published EP document was found for this European "
+                    "application number."
+                ),
+                source="epo",
+                details={"application_number": reference.display_number},
+            )
+
+        normalized_number = f"{country_code}{doc_number}{kind_code or ''}"
+        lookup_number = (
+            f"{country_code}{doc_number}.{kind_code}"
+            if kind_code
+            else f"{country_code}{doc_number}"
+        )
+        publication_reference = PatentReference(
+            source=PatentSource.EPO,
+            normalized_number=normalized_number,
+            display_number=normalized_number,
+            country_code=country_code,
+            doc_number=doc_number,
+            kind_code=kind_code or None,
+            lookup_number=lookup_number,
+            reference_type="publication",
+        )
+        return publication_reference, {
+            "endpoint": self._epo_ops_client.build_register_biblio_path(reference),
+            **register_refs,
+        }
 
     async def _fetch_optional_ep_xml(
         self,

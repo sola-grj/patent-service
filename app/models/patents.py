@@ -19,6 +19,7 @@ class PatentReference(BaseModel):
     doc_number: str
     kind_code: str | None = None
     lookup_number: str
+    reference_type: Literal["publication", "application"] = "publication"
 
 
 class PatentLookupRequest(BaseModel):

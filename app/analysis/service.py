@@ -152,8 +152,11 @@ class PatentAnalysisService:
                         response.original_file.content_type or artifact_mime_type
                     )
             else:
+                publication_lookup_reference = (
+                    await self._resolve_ep_analysis_reference(reference)
+                )
                 draft, publication_reference = await self._analyze_ep_publication(
-                    reference,
+                    publication_lookup_reference,
                     cancellation=cancellation,
                 )
                 artifact_path = await self._prepare_ep_pdf(
@@ -186,6 +189,33 @@ class PatentAnalysisService:
             elapsed_ms=int((time.monotonic() - started_at) * 1000),
         )
         return result
+
+    async def _resolve_ep_analysis_reference(
+        self, reference: PatentReference
+    ) -> PatentReference:
+        if reference.reference_type != "application":
+            return reference
+        if self._lookup_service is None:
+            raise PatentServiceError(
+                code=ErrorCode.SOURCE_ACCESS_NOT_CONFIGURED,
+                status_code=503,
+                message=(
+                    "EP application-number analysis requires the EPO lookup "
+                    "service to resolve the corresponding publication."
+                ),
+                source="epo",
+                details={"application_number": reference.display_number},
+            )
+
+        publication_reference = (
+            await self._lookup_service.resolve_ep_publication_reference(reference)
+        )
+        logger.info(
+            "patent analysis step patent_number=%s source=epo step=application_publication_resolution action=resolved publication_number=%s",
+            reference.normalized_number,
+            publication_reference.normalized_number,
+        )
+        return publication_reference
 
     def _analyze_upload(self, upload: StoredUpload) -> AnalysisDraft:
         started_at = time.monotonic()
@@ -576,6 +606,7 @@ def _ep_reference_with_kind(
             "normalized_number": normalized,
             "display_number": normalized,
             "lookup_number": f"EP{reference.doc_number}.{kind_code}",
+            "reference_type": "publication",
         }
     )
 

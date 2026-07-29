@@ -103,7 +103,7 @@ class EpoOpsClient:
     @staticmethod
     def build_register_biblio_path(reference: PatentReference) -> str:
         return (
-            "/register/publication/epodoc/"
+            f"/register/{reference.reference_type}/epodoc/"
             f"{reference.country_code}{reference.doc_number}/biblio"
         )
 
@@ -310,6 +310,16 @@ class EpoOpsClient:
             if document_id is not None:
                 publication_language = (document_id.get("lang") or "").upper()
         return {
+            "publication_reference": _collect_document_references(
+                bibliographic,
+                "publication-reference",
+                reference_kind="publication",
+            ),
+            "application_reference": _collect_document_references(
+                bibliographic,
+                "application-reference",
+                reference_kind="application",
+            ),
             "agents": _epo_representatives(bibliographic),
             "priority_data": _epo_priority_data(bibliographic),
             "publication_language": publication_language
@@ -712,7 +722,7 @@ def _collect_document_references(
         references.get("docdb")
         or references.get("epodoc")
         or references.get("original")
-        or {}
+        or next(iter(references.values()), {})
     )
     selected_number = _select_document_number(references, reference_kind=reference_kind)
     selected_date = _select_document_date(references, reference_kind=reference_kind)
@@ -760,6 +770,10 @@ def _select_document_number(
             value = candidate.get("full_number", "") or candidate.get("doc_number", "")
         if value:
             return value
+    for candidate in references.values():
+        value = candidate.get("full_number", "") or candidate.get("doc_number", "")
+        if value:
+            return value
     return ""
 
 
@@ -773,6 +787,10 @@ def _select_document_date(
 
     for priority in priorities:
         value = references.get(priority, {}).get("date", "")
+        if value:
+            return value
+    for candidate in references.values():
+        value = candidate.get("date", "")
         if value:
             return value
     return ""
