@@ -249,6 +249,18 @@ class PatentAnalysisArtifact(BaseModel):
     expires_at: str
 
 
+class PatentSourceDocument(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    strategy: Literal["external_url", "generated_cache"]
+    source: PatentSource
+    normalized_number: str
+    kind_code: str | None = None
+    filename: str
+    mime_type: str
+    upstream_url: str | None = None
+
+
 class PatentAnalysisResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -257,6 +269,7 @@ class PatentAnalysisResponse(BaseModel):
     patent_number: str | None = None
     analysis_receipt: str | None = None
     artifact: PatentAnalysisArtifact | None = None
+    source_document: PatentSourceDocument | None = None
     counting_standard: str = (
         "Unicode words including numeric tokens; CJK characters counted individually"
     )

@@ -30,6 +30,7 @@ from app.models.patents import (
     PatentLookupRequest,
     PatentReference,
     PatentSource,
+    PatentSourceDocument,
 )
 from app.services.patent_lookup import PatentLookupService
 from app.utils.patent_numbers import normalize_patent_number
@@ -89,6 +90,7 @@ class PatentAnalysisService:
             reference.source.value,
         )
         artifact: PatentAnalysisArtifact | None = None
+        source_document: PatentSourceDocument | None = None
         with tempfile.TemporaryDirectory(
             prefix="patent-source-analysis-"
         ) as directory:
@@ -151,6 +153,14 @@ class PatentAnalysisService:
                     artifact_mime_type = (
                         response.original_file.content_type or artifact_mime_type
                     )
+                    source_document = PatentSourceDocument(
+                        strategy="generated_cache",
+                        source=PatentSource.WIPO,
+                        normalized_number=response.normalized_number,
+                        kind_code=reference.kind_code,
+                        filename=artifact_filename,
+                        mime_type=artifact_mime_type,
+                    )
             else:
                 publication_lookup_reference = (
                     await self._resolve_ep_analysis_reference(reference)
@@ -159,13 +169,23 @@ class PatentAnalysisService:
                     publication_lookup_reference,
                     cancellation=cancellation,
                 )
-                artifact_path = await self._prepare_ep_pdf(
-                    publication_reference,
-                    workspace,
-                    cancellation=cancellation,
-                )
                 artifact_filename = (
                     f"{publication_reference.normalized_number}.pdf"
+                )
+                source_document = PatentSourceDocument(
+                    strategy="external_url",
+                    source=PatentSource.EPO,
+                    normalized_number=publication_reference.normalized_number,
+                    kind_code=publication_reference.kind_code,
+                    filename=artifact_filename,
+                    mime_type="application/pdf",
+                    upstream_url=(
+                        self._epo_publication_server_client.build_pdf_download_url(
+                            country_code=publication_reference.country_code,
+                            doc_number=publication_reference.doc_number,
+                            kind_code=publication_reference.kind_code or "",
+                        )
+                    ),
                 )
             if cancellation:
                 cancellation.raise_if_cancelled()
@@ -175,6 +195,8 @@ class PatentAnalysisService:
                 drafts=[draft],
                 patent_number=reference.normalized_number,
             )
+            if source_document:
+                result = result.model_copy(update={"source_document": source_document})
             if artifact_path and artifact_path.is_file():
                 artifact = await asyncio.to_thread(
                     self._artifact_store.create_from_path,
@@ -390,33 +412,6 @@ class PatentAnalysisService:
                 "last_error": last_error.message if last_error else "",
             },
         )
-
-    async def _prepare_ep_pdf(
-        self,
-        reference: PatentReference,
-        workspace: Path,
-        *,
-        cancellation: AnalysisCancellation | None = None,
-    ) -> Path | None:
-        try:
-            payload = await self._epo_publication_server_client.download_pdf(
-                country_code=reference.country_code,
-                doc_number=reference.doc_number,
-                kind_code=reference.kind_code or "",
-            )
-            if cancellation:
-                cancellation.raise_if_cancelled()
-            path = workspace / f"{reference.normalized_number}.pdf"
-            await asyncio.to_thread(path.write_bytes, payload)
-            return path
-        except PatentServiceError as exc:
-            logger.warning(
-                "patent analysis original PDF preparation deferred patent_number=%s source=epo code=%s message=%s",
-                reference.normalized_number,
-                exc.code,
-                exc.message,
-            )
-            return None
 
     async def _analyze_epo_ops(
         self,

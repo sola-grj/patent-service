@@ -116,10 +116,16 @@ def get_analysis_service() -> PatentAnalysisService:
 
 @lru_cache(maxsize=1)
 def get_patent_cache_service() -> PatentCacheService:
+    settings = get_settings()
     return PatentCacheService(
         cache=get_supabase_cache(),
         lookup_service=get_lookup_service(),
         artifact_store=get_artifact_store(),
+        epo_publication_server_client=EpoPublicationServerClient(
+            settings.epo_publication_server_url,
+            timeout_seconds=settings.request_timeout_seconds,
+        ),
+        original_file_max_bytes=settings.original_file_max_bytes,
     )
 
 

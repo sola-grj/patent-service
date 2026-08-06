@@ -9,6 +9,7 @@ import httpx
 
 from app.cache.supabase import SupabasePatentCache
 from app.analysis.artifacts import AnalysisArtifactStore
+from app.clients.epo_publication_server import EpoPublicationServerClient
 from app.errors import ErrorCode, PatentServiceError
 from app.models.patents import (
     PatentAnalysisResponse,
@@ -16,6 +17,7 @@ from app.models.patents import (
     PatentLookupApiResponse,
     PatentLookupEpResponse,
     PatentLookupRequest,
+    PatentSource,
 )
 from app.services.patent_lookup import PatentLookupService
 from app.utils.patent_numbers import normalize_patent_number
@@ -30,10 +32,14 @@ class PatentCacheService:
         cache: SupabasePatentCache,
         lookup_service: PatentLookupService,
         artifact_store: AnalysisArtifactStore | None = None,
+        epo_publication_server_client: EpoPublicationServerClient | None = None,
+        original_file_max_bytes: int = 100 * 1024 * 1024,
     ) -> None:
         self._cache = cache
         self._lookup_service = lookup_service
         self._artifact_store = artifact_store
+        self._epo_publication_server_client = epo_publication_server_client
+        self._original_file_max_bytes = original_file_max_bytes
 
     async def prepare(
         self,
@@ -72,10 +78,70 @@ class PatentCacheService:
             processing_status="pending",
         )
         patent_id = str(patent["id"])
+        source_document = analysis.source_document
+        requested_strategy = (
+            source_document.strategy if source_document else None
+        )
+        requested_source_url = (
+            source_document.upstream_url
+            if source_document and source_document.strategy == "external_url"
+            else None
+        )
+        requested_sha256 = (
+            analysis.artifact.sha256
+            if source_document
+            and source_document.strategy == "generated_cache"
+            and analysis.artifact
+            else None
+        )
+        document_filters = {
+            "delivery_strategy": requested_strategy,
+            "upstream_source_url": requested_source_url,
+            "sha256": requested_sha256,
+        }
         _, document = await asyncio.gather(
             self._cache.link_request_patent(request_id, patent_id),
-            self._cache.find_available_document(patent_id),
+            self._cache.find_available_document(
+                patent_id,
+                **{
+                    key: value
+                    for key, value in document_filters.items()
+                    if value is not None
+                },
+            ),
         )
+        if source_document and source_document.strategy == "external_url":
+            if (
+                source_document.source != PatentSource.EPO
+                or not source_document.upstream_url
+            ):
+                raise _original_unavailable()
+            document = document or await self._cache.save_external_document(
+                patent_id=patent_id,
+                filename=source_document.filename,
+                mime_type=source_document.mime_type,
+                source_url=source_document.upstream_url,
+                kind_code=source_document.kind_code,
+            )
+            await asyncio.gather(
+                self._cache.set_request_file_status(
+                    request_id,
+                    "parsed",
+                    document_id=str(document["id"]),
+                    document=document,
+                ),
+                self._cache.finish_processing(patent_id),
+            )
+            if analysis.artifact and self._artifact_store:
+                await asyncio.to_thread(
+                    self._artifact_store.discard,
+                    analysis.artifact.artifact_id,
+                )
+            return PatentCacheAcceptedResponse(
+                request_id=request_id,
+                patent_id=patent_id,
+                status="completed",
+            )
         if document:
             await asyncio.gather(
                 self._cache.set_request_file_status(
@@ -134,12 +200,25 @@ class PatentCacheService:
                 message="Original patent file preparation failed. Retry it first.",
                 source="cache",
             )
-        if (
-            status != "parsed"
-            or not document.get("patent_document_id")
-            or not document.get("storage_bucket")
-            or not document.get("storage_path")
-        ):
+        if status != "parsed" or not document.get("patent_document_id"):
+            raise _original_unavailable()
+        strategy = document.get("delivery_strategy") or "generated_cache"
+        if strategy == "external_url":
+            url = str(document.get("upstream_source_url") or "")
+            if not url or not self._epo_publication_server_client:
+                raise _original_unavailable()
+            content, mime_type = (
+                await self._epo_publication_server_client.download_pdf_url(
+                    url,
+                    max_bytes=self._original_file_max_bytes,
+                )
+            )
+            return (
+                content,
+                str(document.get("original_filename") or "patent-document.pdf"),
+                mime_type or "application/pdf",
+            )
+        if not document.get("storage_bucket") or not document.get("storage_path"):
             raise _original_unavailable()
         content = await self._cache.download_document(
             str(document["storage_bucket"]),
@@ -181,16 +260,25 @@ class PatentCacheService:
                     )
             else:
                 content, filename, mime_type, source_url = prepared
+            source_document = analysis.source_document
             document = await self._cache.save_document(
                 patent_id=patent_id,
                 source=reference.source.value,
-                normalized_number=reference.normalized_number,
+                normalized_number=(
+                    source_document.normalized_number
+                    if source_document
+                    else reference.normalized_number
+                ),
                 filename=filename,
                 mime_type=mime_type,
                 content=content,
                 sha256=hashlib.sha256(content).hexdigest(),
                 source_url=source_url,
-                kind_code=reference.kind_code,
+                kind_code=(
+                    source_document.kind_code
+                    if source_document
+                    else reference.kind_code
+                ),
             )
             await self._cache.set_request_file_status(
                 request_id,

@@ -135,7 +135,30 @@ class SupabasePatentCache:
                 "limit": "1",
             },
         )
-        return rows[0] if rows else None
+        if not rows:
+            return None
+        request_document = rows[0]
+        request_file_status = request_document.get("status")
+        document_id = request_document.get("patent_document_id")
+        if not document_id:
+            return request_document
+        documents = await self._rest(
+            "GET",
+            "patent_documents",
+            params={
+                "id": f"eq.{document_id}",
+                "select": (
+                    "id,delivery_strategy,storage_bucket,storage_path,"
+                    "original_filename,mime_type,upstream_source_url,status"
+                ),
+                "limit": "1",
+            },
+        )
+        if documents:
+            request_document.update(documents[0])
+            request_document["document_status"] = documents[0].get("status")
+            request_document["status"] = request_file_status
+        return request_document
 
     async def download_document(
         self,
@@ -248,8 +271,8 @@ class SupabasePatentCache:
         if document:
             values.update(
                 {
-                    "storage_bucket": document["storage_bucket"],
-                    "storage_path": document["storage_path"],
+                    "storage_bucket": document.get("storage_bucket"),
+                    "storage_path": document.get("storage_path"),
                     "original_filename": document["original_filename"],
                     "mime_type": document["mime_type"],
                 }
@@ -266,19 +289,31 @@ class SupabasePatentCache:
         )
 
     async def find_available_document(
-        self, patent_id: str
+        self,
+        patent_id: str,
+        *,
+        delivery_strategy: str | None = None,
+        upstream_source_url: str | None = None,
+        sha256: str | None = None,
     ) -> dict[str, Any] | None:
+        params = {
+            "patent_id": f"eq.{patent_id}",
+            "status": "eq.available",
+            "document_type": "eq.original_publication",
+            "select": "*",
+            "order": "fetched_at.desc",
+            "limit": "1",
+        }
+        if delivery_strategy:
+            params["delivery_strategy"] = f"eq.{delivery_strategy}"
+        if upstream_source_url:
+            params["upstream_source_url"] = f"eq.{upstream_source_url}"
+        if sha256:
+            params["sha256"] = f"eq.{sha256}"
         rows = await self._rest(
             "GET",
             "patent_documents",
-            params={
-                "patent_id": f"eq.{patent_id}",
-                "status": "eq.available",
-                "document_type": "eq.original_publication",
-                "select": "*",
-                "order": "fetched_at.desc",
-                "limit": "1",
-            },
+            params=params,
         )
         return rows[0] if rows else None
 
@@ -325,10 +360,15 @@ class SupabasePatentCache:
         rows = await self._rest(
             "POST",
             "patent_documents",
-            params={"on_conflict": "patent_id,document_type,sha256"},
+            params={
+                "on_conflict": (
+                    "patent_id,document_type,delivery_strategy,sha256"
+                )
+            },
             json={
                 "patent_id": patent_id,
                 "document_type": "original_publication",
+                "delivery_strategy": "generated_cache",
                 "version_label": kind_code,
                 "kind_code": kind_code,
                 "original_filename": filename,
@@ -345,6 +385,59 @@ class SupabasePatentCache:
         )
         if not rows:
             raise _cache_error("The cached patent document could not be saved.")
+        return rows[0]
+
+    async def save_external_document(
+        self,
+        *,
+        patent_id: str,
+        filename: str,
+        mime_type: str,
+        source_url: str,
+        kind_code: str | None,
+    ) -> dict[str, Any]:
+        existing = await self.find_available_document(
+            patent_id,
+            delivery_strategy="external_url",
+            upstream_source_url=source_url,
+        )
+        if existing:
+            return existing
+        try:
+            rows = await self._rest(
+                "POST",
+                "patent_documents",
+                json={
+                    "patent_id": patent_id,
+                    "document_type": "original_publication",
+                    "delivery_strategy": "external_url",
+                    "version_label": kind_code,
+                    "kind_code": kind_code,
+                    "original_filename": filename,
+                    "mime_type": mime_type,
+                    "byte_size": None,
+                    "sha256": None,
+                    "storage_bucket": None,
+                    "storage_path": None,
+                    "upstream_source_url": source_url,
+                    "status": "available",
+                    "fetched_at": _now(),
+                },
+                prefer="return=representation",
+            )
+        except PatentServiceError as exc:
+            if exc.details.get("status_code") != 409:
+                raise
+            existing = await self.find_available_document(
+                patent_id,
+                delivery_strategy="external_url",
+                upstream_source_url=source_url,
+            )
+            if existing:
+                return existing
+            raise
+        if not rows:
+            raise _cache_error("The external patent document could not be saved.")
         return rows[0]
 
     async def finish_processing(

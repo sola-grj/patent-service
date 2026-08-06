@@ -4,6 +4,7 @@ import zipfile
 from pathlib import Path
 
 import httpx
+import pytest
 from app.analysis.common import AnalysisDraft
 from app.analysis.artifacts import AnalysisArtifactStore
 from app.analysis.ocr import OcrResult
@@ -204,6 +205,9 @@ def test_wipo_analysis_promotes_pdf_and_removes_source_workspace(tmp_path: Path)
 
     assert response.artifact is not None
     assert store.read_bytes(response.artifact) == b"%PDF-prepared"
+    assert response.source_document is not None
+    assert response.source_document.strategy == "generated_cache"
+    assert response.source_document.normalized_number == "WO2026044310A1"
     assert lookup.workspace is not None
     assert not lookup.workspace.exists()
 
@@ -294,6 +298,14 @@ def test_epo_b_kind_resolves_to_a1_archive(tmp_path: Path):
 
     assert requested[0].endswith("/EP1234567NWA1/document.zip")
     assert response.files[0].filename == "EP1234567A1.zip"
+    assert response.artifact is None
+    assert response.source_document is not None
+    assert response.source_document.strategy == "external_url"
+    assert response.source_document.normalized_number == "EP1234567A1"
+    assert response.source_document.kind_code == "A1"
+    assert response.source_document.upstream_url == (
+        "https://data.example/patents/EP1234567NWA1/document.pdf"
+    )
     assert response.aggregate.total_words == 6
 
 
@@ -343,7 +355,107 @@ def test_epo_application_number_resolves_before_archive_download(tmp_path: Path)
     assert all("EP25188322NW" not in url for url in requested)
     assert response.patent_number == "EP25188322.9"
     assert response.files[0].filename == "EP4686382A1.zip"
+    assert response.source_document is not None
+    assert response.source_document.normalized_number == "EP4686382A1"
+    assert response.source_document.upstream_url == (
+        "https://data.example/patents/EP4686382NWA1/document.pdf"
+    )
     assert response.aggregate.total_words == 6
+
+
+def test_epo_pdf_proxy_rejects_untrusted_url():
+    client = EpoPublicationServerClient("https://data.example/patents")
+
+    with pytest.raises(PatentServiceError) as excinfo:
+        asyncio.run(
+            client.download_pdf_url(
+                "https://attacker.example/patents/EP1234567NWA1/document.pdf",
+                max_bytes=1024,
+            )
+        )
+
+    assert excinfo.value.code is ErrorCode.SOURCE_ACCESS_DENIED
+
+
+def test_epo_pdf_proxy_rejects_non_pdf_response():
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            content=b"<html>not a PDF</html>",
+            headers={"content-type": "text/html"},
+        )
+
+    client = EpoPublicationServerClient(
+        "https://data.example/patents",
+        transport=httpx.MockTransport(handler),
+    )
+
+    with pytest.raises(PatentServiceError) as excinfo:
+        asyncio.run(
+            client.download_pdf_url(
+                "https://data.example/patents/EP1234567NWA1/document.pdf",
+                max_bytes=1024,
+            )
+        )
+
+    assert excinfo.value.code is ErrorCode.UPSTREAM_RESPONSE_INVALID
+
+
+def test_epo_pdf_proxy_rejects_redirect_to_untrusted_host():
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        return httpx.Response(
+            302,
+            headers={
+                "location": (
+                    "https://attacker.example/patents/EP1234567NWA1/document.pdf"
+                )
+            },
+        )
+
+    client = EpoPublicationServerClient(
+        "https://data.example/patents",
+        transport=httpx.MockTransport(handler),
+    )
+
+    with pytest.raises(PatentServiceError) as excinfo:
+        asyncio.run(
+            client.download_pdf_url(
+                "https://data.example/patents/EP1234567NWA1/document.pdf",
+                max_bytes=1024,
+            )
+        )
+
+    assert excinfo.value.code is ErrorCode.SOURCE_ACCESS_DENIED
+    assert seen == [
+        "https://data.example/patents/EP1234567NWA1/document.pdf"
+    ]
+
+
+def test_epo_pdf_proxy_rejects_oversized_response():
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            content=b"%PDF-too-large",
+            headers={"content-type": "application/pdf"},
+        )
+
+    client = EpoPublicationServerClient(
+        "https://data.example/patents",
+        transport=httpx.MockTransport(handler),
+    )
+
+    with pytest.raises(PatentServiceError) as excinfo:
+        asyncio.run(
+            client.download_pdf_url(
+                "https://data.example/patents/EP1234567NWA1/document.pdf",
+                max_bytes=5,
+            )
+        )
+
+    assert excinfo.value.code is ErrorCode.UPSTREAM_RESPONSE_INVALID
 
 
 def test_epo_analysis_prefers_ops_text_and_uses_archive_for_drawings(

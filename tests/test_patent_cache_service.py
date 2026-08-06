@@ -9,8 +9,12 @@ from app.errors import ErrorCode, PatentServiceError
 from app.models.patents import (
     PatentAnalysisAggregate,
     PatentAnalysisResponse,
+    PatentBasicInfo,
     PatentLookupEpResponse,
+    PatentLookupResponse,
+    PatentOriginalFile,
     PatentSource,
+    PatentSourceDocument,
 )
 from app.services.patent_cache import PatentCacheService
 
@@ -30,6 +34,7 @@ class DraftOnlyCache:
 class PromotionCache:
     def __init__(self):
         self.saved_content = None
+        self.saved_kwargs = None
         self.statuses = []
 
     async def claim_processing(self, patent_id):
@@ -37,6 +42,7 @@ class PromotionCache:
 
     async def save_document(self, **kwargs):
         self.saved_content = kwargs["content"]
+        self.saved_kwargs = kwargs
         return {"id": "document-id"}
 
     async def set_request_file_status(self, request_id, status, **kwargs):
@@ -91,7 +97,7 @@ class ConcurrentPrepareCache:
         self.link_started.set()
         await self.find_started.wait()
 
-    async def find_available_document(self, patent_id):
+    async def find_available_document(self, patent_id, **_kwargs):
         self.find_started.set()
         await self.link_started.wait()
         return {"id": "document-id"}
@@ -212,6 +218,62 @@ def test_cache_process_promotes_analysis_artifact_without_redownloading(
     assert not (store.root / artifact.artifact_id).exists()
 
 
+def test_wipo_cache_process_reuses_analysis_pdf_artifact(tmp_path: Path):
+    store = AnalysisArtifactStore(
+        Settings(analysis_artifact_dir=str(tmp_path / "artifacts"))
+    )
+    source = tmp_path / "prepared-wipo.pdf"
+    source.write_bytes(b"%PDF-wipo-prepared")
+    artifact = store.create_from_path(
+        source,
+        filename="WO2026044310A1.pdf",
+        mime_type="application/pdf",
+    )
+    analysis = PatentAnalysisResponse(
+        input_mode="patent_number",
+        status="success",
+        patent_number="WO2026044310A1",
+        artifact=artifact,
+        source_document=PatentSourceDocument(
+            strategy="generated_cache",
+            source=PatentSource.WIPO,
+            normalized_number="WO2026044310A1",
+            kind_code="A1",
+            filename="WO2026044310A1.pdf",
+            mime_type="application/pdf",
+        ),
+        aggregate=PatentAnalysisAggregate(total_words=100),
+    )
+    lookup = PatentLookupResponse(
+        source=PatentSource.WIPO,
+        normalized_number="WO2026044310A1",
+        display_number="WO/2026/044310",
+        basic_info=PatentBasicInfo(),
+        original_file=PatentOriginalFile(),
+    )
+    cache = PromotionCache()
+    service = PatentCacheService(
+        cache=cache,
+        lookup_service=LookupMustNotRun(),
+        artifact_store=store,
+    )
+
+    asyncio.run(
+        service.process(
+            request_id="request-id",
+            patent_id="patent-id",
+            lookup=lookup,
+            analysis=analysis,
+        )
+    )
+
+    assert cache.saved_content == b"%PDF-wipo-prepared"
+    assert cache.saved_kwargs["normalized_number"] == "WO2026044310A1"
+    assert cache.saved_kwargs["kind_code"] == "A1"
+    assert cache.statuses == ["parsed"]
+    assert not (store.root / artifact.artifact_id).exists()
+
+
 def test_submitted_request_download_reads_private_cached_document():
     service = PatentCacheService(
         cache=DownloadCache(),
@@ -223,5 +285,131 @@ def test_submitted_request_download_reads_private_cached_document():
     )
 
     assert content == b"%PDF-stored"
+    assert filename == "EP1234567A1.pdf"
+    assert mime_type == "application/pdf"
+
+
+class ExternalPrepareCache:
+    def __init__(self):
+        self.saved = None
+        self.find_kwargs = None
+        self.statuses = []
+
+    async def get_formal_request(self, request_id):
+        return {"id": request_id, "submitted_at": "2026-07-28T00:00:00Z"}
+
+    async def upsert_patent(self, **_kwargs):
+        return {"id": "patent-id"}
+
+    async def link_request_patent(self, request_id, patent_id):
+        return None
+
+    async def find_available_document(self, patent_id, **kwargs):
+        self.find_kwargs = kwargs
+        return None
+
+    async def save_external_document(self, **kwargs):
+        self.saved = kwargs
+        return {
+            "id": "external-document-id",
+            "delivery_strategy": "external_url",
+            "storage_bucket": None,
+            "storage_path": None,
+            "original_filename": kwargs["filename"],
+            "mime_type": kwargs["mime_type"],
+        }
+
+    async def set_request_file_status(self, request_id, status, **kwargs):
+        self.statuses.append((status, kwargs))
+
+    async def finish_processing(self, patent_id):
+        return None
+
+
+def test_epo_cache_prepare_links_external_document_without_background_upload():
+    cache = ExternalPrepareCache()
+    service = PatentCacheService(cache=cache, lookup_service=object())
+    lookup = PatentLookupEpResponse(
+        source=PatentSource.EPO,
+        normalized_number="EP1234567B1",
+        display_number="EP1234567B1",
+        title="Example",
+    )
+    analysis = PatentAnalysisResponse(
+        input_mode="patent_number",
+        status="success",
+        patent_number="EP1234567B1",
+        aggregate=PatentAnalysisAggregate(total_words=100),
+        source_document=PatentSourceDocument(
+            strategy="external_url",
+            source=PatentSource.EPO,
+            normalized_number="EP1234567A1",
+            kind_code="A1",
+            filename="EP1234567A1.pdf",
+            mime_type="application/pdf",
+            upstream_url=(
+                "https://data.example/patents/EP1234567NWA1/document.pdf"
+            ),
+        ),
+    )
+
+    result = asyncio.run(
+        service.prepare(
+            request_id="request-id",
+            lookup=lookup,
+            analysis=analysis,
+        )
+    )
+
+    assert result.status == "completed"
+    assert cache.find_kwargs == {
+        "delivery_strategy": "external_url",
+        "upstream_source_url": (
+            "https://data.example/patents/EP1234567NWA1/document.pdf"
+        ),
+    }
+    assert cache.saved["kind_code"] == "A1"
+    assert cache.saved["source_url"].endswith("/EP1234567NWA1/document.pdf")
+    assert cache.statuses[0][0] == "parsed"
+    assert cache.statuses[0][1]["document_id"] == "external-document-id"
+
+
+class ExternalDownloadCache:
+    async def get_formal_request(self, request_id):
+        return {"id": request_id, "submitted_at": "2026-07-28T00:00:00Z"}
+
+    async def get_request_document(self, request_id):
+        return {
+            "status": "parsed",
+            "patent_document_id": "document-id",
+            "delivery_strategy": "external_url",
+            "upstream_source_url": (
+                "https://data.example/patents/EP1234567NWA1/document.pdf"
+            ),
+            "original_filename": "EP1234567A1.pdf",
+            "mime_type": "application/pdf",
+        }
+
+
+class FakeEpoPdfClient:
+    async def download_pdf_url(self, url, *, max_bytes):
+        assert url.endswith("/EP1234567NWA1/document.pdf")
+        assert max_bytes == 1024
+        return b"%PDF-external", "application/pdf"
+
+
+def test_submitted_request_download_proxies_external_epo_document():
+    service = PatentCacheService(
+        cache=ExternalDownloadCache(),
+        lookup_service=object(),
+        epo_publication_server_client=FakeEpoPdfClient(),
+        original_file_max_bytes=1024,
+    )
+
+    content, filename, mime_type = asyncio.run(
+        service.download_request_document("request-id")
+    )
+
+    assert content == b"%PDF-external"
     assert filename == "EP1234567A1.pdf"
     assert mime_type == "application/pdf"

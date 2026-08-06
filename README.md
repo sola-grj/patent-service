@@ -51,6 +51,7 @@ PATENT_SERVICE_API_KEY
 PATENT_SERVICE_RECEIPT_TTL_SECONDS=86400
 PATENT_SERVICE_ANALYSIS_ARTIFACT_TTL_SECONDS=86400
 PATENT_SERVICE_ANALYSIS_ARTIFACT_CLEANUP_INTERVAL_SECONDS=300
+PATENT_SERVICE_ORIGINAL_FILE_MAX_BYTES=104857600
 # Optional; defaults to the OS temporary directory:
 PATENT_SERVICE_ANALYSIS_ARTIFACT_DIR
 ```
@@ -145,7 +146,10 @@ requests the official OPS bibliographic, description and claims constituents,
 then uses Publication Server `document.zip` XML/images to fill missing text and
 obtain drawings. EPO grant/search-report kinds such as B1/B2/B3 or A3 are
 resolved by trying the corresponding A1 then A2 application publication.
-Missing application publications remain explicit errors.
+Missing application publications remain explicit errors. The signed analysis
+receipt includes a `source_document` descriptor for the publication that was
+actually analyzed, so an input grant number cannot later be used to reconstruct
+the wrong application-publication URL.
 
 PDF parsing uses a quality-checked text layer first. Empty, garbled or otherwise
 unreliable layers fall back to page OCR, while sufficiently large embedded
@@ -241,20 +245,30 @@ cleaned up, and no cancelled result is published. An inference already running
 inside ONNX/Tesseract is allowed to finish its current page before its worker is
 reused; remaining pages are not processed.
 
-Patent-number analysis downloads and prepares the original publication in the
-same background operation as five-part counting. The resulting PDF is copied
-to a short-lived server-side artifact directory and the signed analysis receipt
-contains only its opaque ID, checksum and expiry metadata, never a local path.
-WIPO ZIP/PDF workspaces and EPO publication ZIP workspaces are per-analysis
-temporary directories and are removed on success, failure or cancellation.
+WIPO patent-number analysis prepares its TIFF-to-PDF rendition while doing the
+five-part count. The PDF is copied to a short-lived server-side artifact
+directory and the signed analysis receipt contains only its opaque ID, checksum
+and expiry metadata, never a local path. EPO analysis does not create a PDF
+artifact: it records the resolved Publication Server PDF as a signed
+`external_url` source document. WIPO ZIP/PDF workspaces and EPO publication ZIP
+workspaces are per-analysis temporary directories and are removed on success,
+failure or cancellation.
 
 After a Request and quote are formally submitted, `POST /api/patents/cache`
-promotes the verified analysis artifact into the private `patent-originals`
-bucket, links `patent_documents` and `request_files`, and removes the temporary
-artifact. Drafts never promote files. Expired or process-lost artifacts use one
-official-source re-download after formal submission as a recovery fallback.
-Expired artifacts for abandoned wizards are removed by the periodic cleanup
-task.
+immediately links EPO Requests to an `external_url` document without adding an
+EPO PDF to Storage. WIPO Requests return pending while the verified analysis
+artifact is promoted into the private `patent-originals` bucket and globally
+deduplicated by patent/document/SHA-256. Drafts never promote files. Expired or
+process-lost WIPO artifacts use one official-source re-download after formal
+submission as a recovery fallback. Old receipts without `source_document`
+continue through this generated-cache compatibility path. Expired artifacts for
+abandoned wizards are removed by the periodic cleanup task.
+
+The authenticated Request download endpoint branches on `delivery_strategy`.
+`generated_cache` reads the WIPO PDF from private Supabase Storage;
+`external_url` proxies only Publication Server URLs matching the configured EPO
+base URL. EPO proxy downloads enforce redirect host/path validation, an upstream
+timeout, the configured maximum size, PDF content type and PDF signature.
 
 IASR `parties.agents` and `classifications-ipcr` are mapped directly into
 `agents` and `basic_info.ipc`. WIPO IASR does not expose CPC, so interactive WO

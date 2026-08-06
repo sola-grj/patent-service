@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     wipo_storage_dir: str | None = None
     request_timeout_seconds: float = 20.0
     analysis_max_file_bytes: int = 50 * 1024 * 1024
+    original_file_max_bytes: int = 100 * 1024 * 1024
     analysis_max_total_bytes: int = 100 * 1024 * 1024
     analysis_max_files: int = 5
     analysis_max_pdf_pages: int = 300
