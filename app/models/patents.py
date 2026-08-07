@@ -27,6 +27,7 @@ class PatentLookupRequest(BaseModel):
 
     patent_number: str
     include_original_file: bool = False
+    source: PatentSource | None = None
 
 
 class PatentLookupCacheInfo(BaseModel):
@@ -175,6 +176,7 @@ class PatentLookupEpResponse(BaseModel):
     claims_words: int | None = None
     total_pages: int | None = None
     drawings: PatentDrawingsInfo = Field(default_factory=PatentDrawingsInfo)
+    original_file: PatentOriginalFile = Field(default_factory=PatentOriginalFile)
     original_file_download_url: str | None = None
     warnings: list[PatentLookupWarning] = Field(default_factory=list)
     raw_source_refs: dict[str, Any] = Field(default_factory=dict)

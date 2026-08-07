@@ -41,6 +41,7 @@ from app.models.patents import (
     PatentLookupRequest,
     PatentReceiptVerificationRequest,
     PatentReceiptVerificationResponse,
+    PatentSource,
 )
 from app.security.receipts import ReceiptSigner
 from app.services.patent_cache import PatentCacheService
@@ -146,8 +147,11 @@ def _require_service_api_key(
         )
 
 
-def normalize_receipt_number(value: str) -> str:
-    return normalize_patent_number(value).normalized_number
+def normalize_receipt_number(value: str, source: PatentSource) -> str:
+    return normalize_patent_number(
+        value,
+        source_override=source,
+    ).normalized_number
 
 
 @router.get("/health")
@@ -206,6 +210,7 @@ async def lookup_patent(
 async def analyze_patent(
     http_request: Request,
     patent_number: str | None = Form(default=None),
+    source: PatentSource | None = Form(default=None),
     files: list[UploadFile] | None = File(default=None),
     settings: Settings = Depends(get_settings),
     service: PatentAnalysisService = Depends(get_analysis_service),
@@ -235,6 +240,7 @@ async def analyze_patent(
                 cancellation=cancellation,
                 analysis=service.analyze_patent(
                     normalized_input,
+                    source=source,
                     cancellation=cancellation,
                 ),
                 timeout_seconds=settings.analysis_timeout_seconds,
@@ -315,8 +321,12 @@ async def verify_patent_receipts(
     analysis = signer.verify_analysis(request.analysis_receipt)
     if (
         not analysis.patent_number
-        or normalize_receipt_number(analysis.patent_number)
-        != normalize_receipt_number(lookup.normalized_number)
+        or (
+            analysis.source_document
+            and analysis.source_document.source != lookup.source
+        )
+        or normalize_receipt_number(analysis.patent_number, lookup.source)
+        != normalize_receipt_number(lookup.normalized_number, lookup.source)
     ):
         raise PatentServiceError(
             code=ErrorCode.INVALID_RECEIPT,

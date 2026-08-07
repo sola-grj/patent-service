@@ -70,6 +70,13 @@ class WordPatentParser:
             if heading:
                 current_part = heading
                 detected_sections = True
+                draft.add_text(
+                    heading,
+                    text,
+                    method="docx_xml",
+                    confidence="high",
+                    is_drawing=heading in {"abstract_drawing", "description_drawings"},
+                )
             elif text:
                 target = current_part if detected_sections and current_part else "unclassified"
                 status = "found" if target != "unclassified" else "unclassified"
@@ -79,6 +86,7 @@ class WordPatentParser:
                     method="docx_xml",
                     confidence="high" if target != "unclassified" else "low",
                     status=status,
+                    is_drawing=target in {"abstract_drawing", "description_drawings"},
                 )
             for relationship_id in _image_relationship_ids(block):
                 target_name = relationships.get(relationship_id)
@@ -94,7 +102,7 @@ class WordPatentParser:
                 seen_images.add(digest)
                 image_part = (
                     "abstract_drawing"
-                    if current_part == "abstract"
+                    if current_part in {"abstract", "abstract_drawing"}
                     else "description_drawings"
                     if current_part in {"description", "description_drawings"}
                     else "unclassified"

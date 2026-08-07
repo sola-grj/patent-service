@@ -22,7 +22,19 @@ _ABSTRACT_MARKER = re.compile(
     r"resumen|resumo|реферат|摘要|要約|초록|ملخص)\s*[:：]?\s*",
     re.IGNORECASE,
 )
-_PATENT_HEADER = re.compile(r"^(?:WO|EP|PCT[/ -])[ /-]?[A-Z0-9/ -]{5,}$", re.IGNORECASE)
+_PATENT_HEADER = re.compile(
+    r"^(?:PCT[/ -][A-Z]{2}[ /-]?\d|[A-Z]{2}[ /-]?\d)[A-Z0-9/ .-]{4,}$",
+    re.IGNORECASE,
+)
+_PAGE_LABEL = re.compile(
+    r"^(?:"
+    r"-?\s*\d+\s*-?|"
+    r"(?:第\s*)?\d+\s*(?:/\s*\d+)?\s*(?:页|頁)|"
+    r"pages?\s*\d+(?:\s*of\s*\d+)?|"
+    r"\d+\s*/\s*\d+\s*pages?"
+    r")$",
+    re.IGNORECASE,
+)
 
 
 class PdfPatentParser:
@@ -200,7 +212,7 @@ class PdfPatentParser:
                     method=method,
                     confidence=confidence if target != "unclassified" else "low",
                     status=status,
-                    is_drawing=target == "description_drawings",
+                    is_drawing=target in {"abstract_drawing", "description_drawings"},
                 )
                 if target == "abstract":
                     abstract_found = True
@@ -373,7 +385,8 @@ class PdfPatentParser:
     ) -> None:
         candidate_part = (
             "abstract_drawing"
-            if "abstract" in page_parts or current_part == "abstract"
+            if page_parts.intersection({"abstract", "abstract_drawing"})
+            or current_part in {"abstract", "abstract_drawing"}
             else "description_drawings"
             if page_parts.intersection({"description", "description_drawings"})
             or current_part in {"description", "description_drawings"}
@@ -465,7 +478,12 @@ def _extract_cover_parts(text: str) -> tuple[str, str]:
     remainder = text[match.end() : abstract_end]
     collected: list[str] = []
     for line in remainder.splitlines():
-        if detect_heading(line) in {"description", "claims", "description_drawings"}:
+        if detect_heading(line) in {
+            "abstract_drawing",
+            "description",
+            "claims",
+            "description_drawings",
+        }:
             break
         if line.strip() and not _is_repeated_header(line):
             collected.append(line.strip())
@@ -513,7 +531,7 @@ def _ocr_text_duplicates_page(image_text: str, page_text: str) -> bool:
 
 def _is_repeated_header(line: str) -> bool:
     normalized = " ".join(line.split())
-    return bool(_PATENT_HEADER.match(normalized)) or normalized.isdigit()
+    return bool(_PATENT_HEADER.match(normalized)) or bool(_PAGE_LABEL.match(normalized))
 
 
 def _ocr_confidence(result: OcrResult) -> str:

@@ -5,11 +5,21 @@ from fastapi.testclient import TestClient
 
 from app.api.routes import get_analysis_service, get_ocr_engine
 from app.main import app
-from app.models.patents import PatentAnalysisResponse
+from app.models.patents import PatentAnalysisResponse, PatentSource
 
 
 class StubAnalysisService:
-    async def analyze_patent(self, patent_number: str, *, cancellation=None):
+    def __init__(self) -> None:
+        self.source: PatentSource | None = None
+
+    async def analyze_patent(
+        self,
+        patent_number: str,
+        *,
+        source: PatentSource | None = None,
+        cancellation=None,
+    ):
+        self.source = source
         return PatentAnalysisResponse(
             input_mode="patent_number", status="success", patent_number=patent_number
         )
@@ -83,3 +93,19 @@ def test_analyze_accepts_valid_pdf_upload(tmp_path: Path):
     app.dependency_overrides.clear()
     assert response.status_code == 200
     assert response.json()["input_mode"] == "upload"
+
+
+def test_analyze_forwards_epo_source_for_national_publication():
+    service = StubAnalysisService()
+    app.dependency_overrides[get_analysis_service] = lambda: service
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/patents/analyze",
+        data={"patent_number": "CN114302447A", "source": "epo"},
+    )
+
+    app.dependency_overrides.clear()
+    assert response.status_code == 200
+    assert response.json()["patent_number"] == "CN114302447A"
+    assert service.source is PatentSource.EPO

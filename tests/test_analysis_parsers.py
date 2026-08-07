@@ -52,6 +52,29 @@ class BatchOcr(FakeOcr):
         ]
 
 
+class PageSequenceOcr:
+    def __init__(self, page_texts: list[str]) -> None:
+        self.page_texts = page_texts
+        self.offset = 0
+
+    def recognize_many(self, images, *, sparse=False, language=None):
+        end = self.offset + len(images)
+        values = self.page_texts[self.offset : end]
+        self.offset = end
+        return [
+            OcrResult(
+                text=value,
+                confidence=95,
+                language="chi_sim",
+                provider="rapidocr",
+            )
+            for value in values
+        ]
+
+    def recognize(self, image_bytes, *, sparse=False, language=None):
+        raise AssertionError("Scanned patent pages should use batched OCR")
+
+
 def test_structured_ocr_cleanup_removes_headers_and_footers_but_keeps_figure_numbers():
     text = (
         "WO 2026/044310\nPCT/AT2025/060321\n- 5 -\n"
@@ -223,6 +246,51 @@ def test_scanned_pdf_falls_back_to_ocr(tmp_path: Path):
     assert result.parts.abstract.word_count == 2
 
 
+def test_scanned_cn_pdf_maps_official_page_headers_to_all_five_parts(tmp_path: Path):
+    image_stream = io.BytesIO()
+    Image.new("RGB", (600, 800), "white").save(image_stream, format="PNG")
+    path = tmp_path / "CN114302447A.pdf"
+    document = fitz.open()
+    for _ in range(6):
+        page = document.new_page(width=600, height=800)
+        page.insert_image(page.rect, stream=image_stream.getvalue())
+    document.save(path)
+    document.close()
+
+    ocr = PageSequenceOcr(
+        [
+            "CN 114302447 A\n(54) Timer patent\n10 valve\n摘要\ncover abstract text",
+            "CN 114302447 A\n权 利 要 求 书\n1/2页\n1. first claim text",
+            "CN 114302447 A\n权利要求书 2/2页\n2. second claim text",
+            "CN 114302447 A\n说 明 书\n1/1页\ndetailed description body",
+            "CN 114302447 A\n说 明 书 附 图\n1/1页\n图1 10 inlet",
+            "CN 114302447 A\n说明书摘要附图\n1/1页\n图2 20 outlet",
+        ]
+    )
+
+    draft = PdfPatentParser(Settings(ocr_batch_size=4), ocr).parse(
+        path, filename=path.name
+    )
+    result = draft.to_result()
+
+    assert ocr.offset == 6
+    assert draft.parts["abstract"].text == "cover abstract text"
+    assert draft.parts["claims"].text == (
+        "1. first claim text 2. second claim text"
+    )
+    assert draft.parts["description"].text == "detailed description body"
+    assert draft.parts["description_drawings"].text == "图1 10 inlet"
+    assert draft.parts["abstract_drawing"].text == "10 valve 图2 20 outlet"
+    assert all(
+        "CN 114302447 A" not in part.text and "1/" not in part.text
+        for part in draft.parts.values()
+    )
+    assert result.parts.claims.status == "found"
+    assert result.parts.description_drawings.status == "found"
+    assert result.parts.abstract_drawing.status == "found"
+    assert result.drawing_ocr_words > 0
+
+
 def test_pdf_rejects_garbled_but_nonempty_text_layer():
     assert not _text_layer_is_reliable("Ã¼ Ã¶ broken text")
     assert _text_layer_is_reliable("A reliable technical description")
@@ -311,14 +379,40 @@ def test_docx_body_and_embedded_image_are_added_once(tmp_path: Path):
         path, filename=path.name
     ).to_result()
 
-    assert result.parts.abstract.word_count == 2
+    assert result.parts.abstract.word_count == 3
     assert result.parts.abstract_drawing.word_count == 2
-    assert result.parts.description.word_count == 2
+    assert result.parts.description.word_count == 3
     assert result.parts.description_drawings.word_count == 0
-    assert result.parts.claims.word_count == 2
-    assert result.document_text_words == 6
+    assert result.parts.claims.word_count == 3
+    assert result.document_text_words == 9
     assert result.drawing_ocr_words == 2
-    assert result.total_words == 8
+    assert result.total_words == 11
+
+
+def test_image_only_docx_uses_embedded_image_ocr_for_total_words(tmp_path: Path):
+    path = tmp_path / "scanned.docx"
+    document_xml = b"""<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+      xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+      xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+      <w:body><w:p><w:r><a:blip r:embed="rId1"/></w:r></w:p></w:body>
+    </w:document>"""
+    rels = b"""<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+      <Relationship Id="rId1" Type="image" Target="media/image1.bin"/>
+    </Relationships>"""
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("[Content_Types].xml", "<Types/>")
+        archive.writestr("word/document.xml", document_xml)
+        archive.writestr("word/_rels/document.xml.rels", rels)
+        archive.writestr("word/media/image1.bin", b"DOCX_IMAGE")
+
+    result = WordPatentParser(Settings(), FakeOcr()).parse(
+        path, filename=path.name
+    ).to_result()
+
+    assert result.document_text_words == 0
+    assert result.drawing_ocr_words == 2
+    assert result.total_words == 2
+    assert result.parts.unclassified.method == "ocr"
 
 
 def test_docx_without_section_headings_preserves_text_as_unclassified(tmp_path: Path):

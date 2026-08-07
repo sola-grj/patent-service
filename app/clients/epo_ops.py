@@ -4,8 +4,11 @@ import time
 import xml.etree.ElementTree as ET
 from collections.abc import Iterable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
+import fitz
 import httpx
 
 from app.config import Settings
@@ -60,6 +63,43 @@ class EpoOpsClient:
             source="epo",
         )
 
+    async def fetch_resolved_bibliographic_data(
+        self, reference: PatentReference
+    ) -> tuple[PatentReference, str, dict[str, Any]]:
+        attempted: list[str] = []
+        last_error: PatentServiceError | None = None
+        for path in self.build_biblio_candidate_paths(reference):
+            attempted.append(path)
+            try:
+                xml_text = await self._get_xml(
+                    path=path,
+                    accept="application/exchange+xml",
+                    source="epo",
+                )
+            except PatentServiceError as exc:
+                if exc.code is ErrorCode.SOURCE_NO_RESULT:
+                    last_error = exc
+                    continue
+                raise
+            _, refs = self.parse_bibliographic_data(xml_text)
+            resolved = self.reference_from_bibliographic_data(reference, refs)
+            return resolved, xml_text, {
+                "endpoint": path,
+                "attempted_endpoints": attempted,
+                "input_number": reference.display_number,
+            }
+        raise PatentServiceError(
+            code=ErrorCode.SOURCE_NO_RESULT,
+            status_code=404,
+            message="No publication was found in EPO OPS.",
+            source="epo",
+            details={
+                "input_number": reference.display_number,
+                "attempted_endpoints": attempted,
+                "last_error": last_error.message if last_error else "",
+            },
+        )
+
     async def fetch_register_bibliographic_data(
         self, reference: PatentReference
     ) -> str:
@@ -100,6 +140,63 @@ class EpoOpsClient:
     def build_biblio_path(self, reference: PatentReference) -> str:
         return f"/published-data/publication/epodoc/{reference.lookup_number}/biblio"
 
+    def build_biblio_candidate_paths(self, reference: PatentReference) -> list[str]:
+        candidates = [self.build_biblio_path(reference)]
+        if reference.kind_code:
+            candidates.append(
+                "/published-data/publication/docdb/"
+                f"{reference.country_code}.{reference.doc_number}."
+                f"{reference.kind_code}/biblio"
+            )
+        for number in (
+            reference.normalized_number,
+            f"{reference.country_code}{reference.doc_number}",
+        ):
+            query = quote(f"pn={number}", safe="")
+            candidates.append(f"/published-data/search/biblio?q={query}")
+        return list(dict.fromkeys(candidates))
+
+    @staticmethod
+    def reference_from_bibliographic_data(
+        reference: PatentReference, refs: dict[str, Any]
+    ) -> PatentReference:
+        publication = refs.get("publication_reference", {})
+        epodoc = publication.get("ids", {}).get("epodoc", {})
+        country_code = str(
+            epodoc.get("country")
+            or publication.get("country")
+            or reference.country_code
+        )
+        doc_number = str(
+            epodoc.get("doc_number")
+            or publication.get("doc_number")
+            or reference.doc_number
+        )
+        if doc_number.startswith(country_code):
+            doc_number = doc_number[len(country_code):]
+        kind_code = str(
+            epodoc.get("kind")
+            or publication.get("kind")
+            or reference.kind_code
+            or ""
+        ) or None
+        normalized_number = f"{country_code}{doc_number}{kind_code or ''}"
+        lookup_number = (
+            f"{country_code}{doc_number}.{kind_code}"
+            if country_code == "EP" and kind_code
+            else f"{country_code}{doc_number}"
+        )
+        return reference.model_copy(
+            update={
+                "normalized_number": normalized_number,
+                "country_code": country_code,
+                "doc_number": doc_number,
+                "kind_code": kind_code,
+                "lookup_number": lookup_number,
+                "reference_type": "publication",
+            }
+        )
+
     @staticmethod
     def build_register_biblio_path(reference: PatentReference) -> str:
         return (
@@ -129,6 +226,154 @@ class EpoOpsClient:
         response = await self._http_client.get(path, headers=headers)
         self._raise_for_error(response, source=source)
         return response.text
+
+    async def download_full_document(
+        self,
+        reference: PatentReference,
+        *,
+        images_xml: str,
+        storage_dir: Path,
+        max_pages: int,
+        max_bytes: int,
+        concurrency: int = 3,
+    ) -> tuple[PatentOriginalFile, dict[str, Any]]:
+        file_info, refs = self.parse_original_file_availability(images_xml)
+        page_count = int(refs.get("page_count") or 0)
+        link = str(refs.get("document_instance_link") or "").lstrip("/")
+        full_document = next(
+            (
+                item
+                for item in refs.get("available_document_instances", [])
+                if item.get("desc") == "FullDocument"
+                and item.get("link") == refs.get("document_instance_link")
+            ),
+            None,
+        )
+        formats = list((full_document or {}).get("formats") or [])
+        content_type = (
+            "application/pdf"
+            if "application/pdf" in formats
+            else "image/tiff"
+            if "image/tiff" in formats
+            else ""
+        )
+        if not file_info.available or not link or not page_count or not content_type:
+            raise PatentServiceError(
+                code=ErrorCode.ORIGINAL_FILE_NOT_AVAILABLE,
+                status_code=404,
+                message="EPO OPS did not expose a complete publication document.",
+                source="epo",
+                details={"normalized_number": reference.normalized_number},
+            )
+        if page_count > max_pages:
+            raise PatentServiceError(
+                code=ErrorCode.UPLOAD_TOO_LARGE,
+                status_code=422,
+                message="The EPO publication exceeds the configured page limit.",
+                source="epo",
+                details={"page_count": page_count, "max_pages": max_pages},
+            )
+
+        semaphore = asyncio.Semaphore(max(1, concurrency))
+        byte_lock = asyncio.Lock()
+        downloaded_bytes = 0
+
+        async def fetch_page(page_number: int) -> bytes:
+            nonlocal downloaded_bytes
+            async with semaphore:
+                payload = await self._get_document_page(
+                    f"/{link}", page_number=page_number, accept=content_type
+                )
+                async with byte_lock:
+                    downloaded_bytes += len(payload)
+                    if downloaded_bytes > max_bytes:
+                        raise PatentServiceError(
+                            code=ErrorCode.UPLOAD_TOO_LARGE,
+                            status_code=422,
+                            message=(
+                                "The EPO publication exceeds the configured "
+                                "file-size limit."
+                            ),
+                            source="epo",
+                            details={
+                                "size": downloaded_bytes,
+                                "max_bytes": max_bytes,
+                            },
+                        )
+                return payload
+
+        tasks = [
+            asyncio.create_task(fetch_page(page_number))
+            for page_number in range(1, page_count + 1)
+        ]
+        try:
+            pages = await asyncio.gather(*tasks)
+        except BaseException:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            raise
+
+        storage_dir.mkdir(parents=True, exist_ok=True)
+        filename = f"{reference.normalized_number}.pdf"
+        output_path = storage_dir / filename
+        await asyncio.to_thread(
+            _merge_ops_document_pages, pages, content_type, output_path
+        )
+        if output_path.stat().st_size > max_bytes:
+            output_path.unlink(missing_ok=True)
+            raise PatentServiceError(
+                code=ErrorCode.UPLOAD_TOO_LARGE,
+                status_code=422,
+                message="The merged EPO publication exceeds the file-size limit.",
+                source="epo",
+            )
+        return PatentOriginalFile(
+            available=True,
+            content_type="application/pdf",
+            filename=filename,
+            storage_path=str(output_path),
+        ), {
+            **refs,
+            "page_content_type": content_type,
+            "downloaded_page_count": len(pages),
+            "downloaded_bytes": downloaded_bytes,
+            "storage_path": str(output_path),
+        }
+
+    async def _get_document_page(
+        self, path: str, *, page_number: int, accept: str
+    ) -> bytes:
+        for attempt in range(3):
+            token = await self._get_access_token()
+            try:
+                response = await self._http_client.get(
+                    path,
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Accept": accept,
+                        "X-OPS-Range": str(page_number),
+                    },
+                )
+            except httpx.RequestError as exc:
+                if attempt < 2:
+                    await asyncio.sleep(0.5 * (2**attempt))
+                    continue
+                raise PatentServiceError(
+                    code=ErrorCode.SOURCE_UNAVAILABLE,
+                    status_code=503,
+                    message="EPO OPS page download failed.",
+                    source="epo",
+                    details={"page_number": page_number, "error": str(exc)},
+                ) from exc
+            if response.status_code == 429 and attempt < 2:
+                retry_after = response.headers.get("Retry-After")
+                delay = float(retry_after) if retry_after and retry_after.isdigit() else 0.5 * (2**attempt)
+                await asyncio.sleep(delay)
+                continue
+            self._raise_for_error(response, source="epo")
+            return response.content
+        raise AssertionError("unreachable")
 
     async def _get_access_token(self) -> str:
         if self._access_token and time.time() < self._access_token_expires_at:
@@ -494,7 +739,9 @@ class EpoOpsClient:
             if desc.lower() == "drawing":
                 has_drawings = True
                 drawing_page_count = page_count
-            if desc == "FullDocument" and "application/pdf" in formats:
+            if desc == "FullDocument" and any(
+                item in formats for item in ("application/pdf", "image/tiff")
+            ):
                 full_document = document_instance
 
         raw_refs: dict[str, Any] = {
@@ -512,7 +759,13 @@ class EpoOpsClient:
         filename = f"{country_code}{doc_number}{kind_code}.pdf"
         file_info = PatentOriginalFile(
             available=True,
-            content_type="application/pdf",
+            content_type=(
+                "application/pdf"
+                if "application/pdf" in _texts_for_local(
+                    full_document, "document-format"
+                )
+                else "image/tiff"
+            ),
             filename=filename,
         )
         raw_refs.update(
@@ -538,6 +791,48 @@ def _parse_xml(xml_text: str, *, source: str) -> ET.Element:
 
 def _local_name(tag: str) -> str:
     return tag.rsplit("}", 1)[-1]
+
+
+def _merge_ops_document_pages(
+    pages: list[bytes], content_type: str, output_path: Path
+) -> None:
+    merged = fitz.open()
+    try:
+        for payload in pages:
+            if content_type == "application/pdf":
+                source = fitz.open(stream=payload, filetype="pdf")
+            else:
+                image = fitz.open(stream=payload, filetype="tiff")
+                try:
+                    source = fitz.open("pdf", image.convert_to_pdf())
+                finally:
+                    image.close()
+            try:
+                merged.insert_pdf(source)
+            finally:
+                source.close()
+        if merged.page_count != len(pages):
+            raise PatentServiceError(
+                code=ErrorCode.UPSTREAM_RESPONSE_INVALID,
+                status_code=502,
+                message="EPO OPS returned an unexpected number of document pages.",
+                source="epo",
+                details={
+                    "expected_pages": len(pages),
+                    "merged_pages": merged.page_count,
+                },
+            )
+        merged.save(output_path)
+    except (fitz.FileDataError, RuntimeError, ValueError) as exc:
+        raise PatentServiceError(
+            code=ErrorCode.UPSTREAM_RESPONSE_INVALID,
+            status_code=502,
+            message="EPO OPS returned an invalid publication page.",
+            source="epo",
+            details={"error": str(exc)},
+        ) from exc
+    finally:
+        merged.close()
 
 
 def _first_local(nodes: Iterable[ET.Element], local_name: str) -> ET.Element | None:

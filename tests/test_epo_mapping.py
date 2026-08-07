@@ -1,6 +1,16 @@
+import asyncio
+import io
+import time
 from pathlib import Path
 
-from app.clients.epo_ops import EpoOpsClient
+import fitz
+import httpx
+from PIL import Image
+
+from app.clients.epo_ops import EpoOpsClient, _merge_ops_document_pages
+from app.config import Settings
+from app.models.patents import PatentSource
+from app.utils.patent_numbers import normalize_patent_number
 from app.utils.text_metrics import count_words
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -124,3 +134,89 @@ def test_parse_original_file_availability():
     assert raw_refs["drawing_page_count"] == 7
     assert raw_refs["has_drawings"] is True
     assert raw_refs["page_count"] == 14
+
+
+def test_national_bibliographic_candidates_are_ordered_and_canonicalized():
+    client = EpoOpsClient(Settings())
+    reference = normalize_patent_number(
+        "US20210184727A1",
+        source_override=PatentSource.EPO,
+    )
+
+    candidates = client.build_biblio_candidate_paths(reference)
+    canonical = client.reference_from_bibliographic_data(
+        reference,
+        {
+            "publication_reference": {
+                "country": "US",
+                "doc_number": "20210184727",
+                "kind": "A1",
+                "ids": {
+                    "epodoc": {
+                        "doc_number": "US2021184727",
+                        "kind": "A1",
+                    }
+                },
+            }
+        },
+    )
+
+    assert candidates[0].endswith("/epodoc/US2021184727/biblio")
+    assert candidates[1].endswith("/docdb/US.2021184727.A1/biblio")
+    assert "q=pn%3DUS2021184727A1" in candidates[2]
+    assert canonical.normalized_number == "US2021184727A1"
+    assert canonical.lookup_number == "US2021184727"
+
+
+def test_ops_page_download_retries_429_and_sends_page_range():
+    seen_ranges: list[str | None] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen_ranges.append(request.headers.get("X-OPS-Range"))
+        if len(seen_ranges) == 1:
+            return httpx.Response(429, headers={"Retry-After": "0"})
+        return httpx.Response(200, content=b"page")
+
+    async def run() -> bytes:
+        client = EpoOpsClient(Settings())
+        await client._http_client.aclose()
+        client._http_client = httpx.AsyncClient(
+            base_url="https://ops.example",
+            transport=httpx.MockTransport(handler),
+        )
+        client._access_token = "token"
+        client._access_token_expires_at = time.time() + 60
+        try:
+            return await client._get_document_page(
+                "/published-data/example/fullimage",
+                page_number=7,
+                accept="application/pdf",
+            )
+        finally:
+            await client._http_client.aclose()
+
+    assert asyncio.run(run()) == b"page"
+    assert seen_ranges == ["7", "7"]
+
+
+def test_merge_ops_pdf_and_tiff_pages(tmp_path: Path):
+    pdf = fitz.open()
+    pdf.new_page()
+    pdf_page = pdf.tobytes()
+    pdf.close()
+    tiff_buffer = io.BytesIO()
+    Image.new("RGB", (12, 12), "white").save(tiff_buffer, format="TIFF")
+
+    pdf_output = tmp_path / "pdf-pages.pdf"
+    tiff_output = tmp_path / "tiff-pages.pdf"
+    _merge_ops_document_pages([pdf_page, pdf_page], "application/pdf", pdf_output)
+    _merge_ops_document_pages(
+        [tiff_buffer.getvalue()],
+        "image/tiff",
+        tiff_output,
+    )
+
+    with fitz.open(pdf_output) as merged_pdf:
+        assert merged_pdf.page_count == 2
+    with fitz.open(tiff_output) as merged_tiff:
+        assert merged_tiff.page_count == 1

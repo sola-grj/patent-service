@@ -77,12 +77,17 @@ class PatentAnalysisService:
         self,
         patent_number: str,
         *,
+        source: PatentSource | None = None,
         cancellation: AnalysisCancellation | None = None,
     ) -> PatentAnalysisResponse:
         started_at = time.monotonic()
         if cancellation:
             cancellation.raise_if_cancelled()
-        reference = normalize_patent_number(patent_number)
+        reference = normalize_patent_number(
+            patent_number,
+            source_override=source,
+        )
+        result_reference = reference
         logger.info(
             "patent analysis routed patent_number=%s normalized_number=%s source=%s step=source_route",
             patent_number,
@@ -108,7 +113,9 @@ class PatentAnalysisService:
                 response = await _lookup_full_in_workspace(
                     self._lookup_service,
                     PatentLookupRequest(
-                        patent_number=patent_number, include_original_file=True
+                        patent_number=patent_number,
+                        include_original_file=True,
+                        source=reference.source,
                     ),
                     workspace,
                 )
@@ -161,7 +168,7 @@ class PatentAnalysisService:
                         filename=artifact_filename,
                         mime_type=artifact_mime_type,
                     )
-            else:
+            elif reference.country_code == "EP":
                 publication_lookup_reference = (
                     await self._resolve_ep_analysis_reference(reference)
                 )
@@ -187,13 +194,74 @@ class PatentAnalysisService:
                         )
                     ),
                 )
+                if reference.reference_type != "application":
+                    result_reference = publication_reference
+            else:
+                response = await _lookup_full_in_workspace(
+                    self._lookup_service,
+                    PatentLookupRequest(
+                        patent_number=patent_number,
+                        include_original_file=True,
+                        source=PatentSource.EPO,
+                    ),
+                    workspace,
+                )
+                result_reference = normalize_patent_number(
+                    response.normalized_number,
+                    source_override=PatentSource.EPO,
+                )
+                prepared_path = Path(response.original_file.storage_path or "")
+                if not prepared_path.is_file():
+                    raise PatentServiceError(
+                        code=ErrorCode.ORIGINAL_FILE_NOT_AVAILABLE,
+                        status_code=404,
+                        message=(
+                            "EPO OPS did not provide a complete locally "
+                            "available publication document."
+                        ),
+                        source="epo",
+                        details={
+                            "normalized_number": response.normalized_number
+                        },
+                    )
+                draft = await _to_thread_cancellable(
+                    cancellation,
+                    self._pdf_parser.parse,
+                    prepared_path,
+                    filename=response.original_file.filename
+                    or artifact_filename,
+                )
+                if (
+                    not draft.parts["abstract"].text.strip()
+                    and response.abstract.strip()
+                ):
+                    draft.add_text(
+                        "abstract",
+                        response.abstract,
+                        method="epo_ops_biblio",
+                        confidence="high",
+                    )
+                artifact_path = prepared_path
+                artifact_filename = (
+                    response.original_file.filename
+                    or f"{response.normalized_number}.pdf"
+                )
+                artifact_mime_type = "application/pdf"
+                source_document = PatentSourceDocument(
+                    strategy="generated_cache",
+                    source=PatentSource.EPO,
+                    normalized_number=response.normalized_number,
+                    kind_code=result_reference.kind_code,
+                    filename=artifact_filename,
+                    mime_type=artifact_mime_type,
+                )
             if cancellation:
                 cancellation.raise_if_cancelled()
             _ensure_official_core_sections(draft, source=reference.source.value)
             result = _build_response(
                 input_mode="patent_number",
                 drafts=[draft],
-                patent_number=reference.normalized_number,
+                patent_number=result_reference.normalized_number,
             )
             if source_document:
                 result = result.model_copy(update={"source_document": source_document})

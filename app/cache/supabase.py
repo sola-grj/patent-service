@@ -229,6 +229,7 @@ class SupabasePatentCache:
             reference.display_number,
             lookup.normalized_number,
             reference.normalized_number,
+            f"{reference.country_code}{reference.doc_number}",
         ):
             normalized_alias = normalize_alias(alias)
             if normalized_alias and normalized_alias not in aliases_by_normalized:

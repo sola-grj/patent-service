@@ -87,6 +87,15 @@ Accepted formats include:
 - `WO 2025 078629 A1`
 - `PCT/AT2025/060357`
 - `PCTAT2025060357`
+- `CN114302447A` with `source=epo` (national publication via EPO OPS)
+
+National publication numbers are accepted only with an explicit EPO source
+override. For multipart analysis requests, send both fields:
+
+```text
+patent_number=CN114302447A
+source=epo
+```
 
 EP publication, EP application, WO publication, and PCT international-application lookup
 responses expose the following bibliographic fields at the top level with the

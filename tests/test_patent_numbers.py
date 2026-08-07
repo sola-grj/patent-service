@@ -33,6 +33,30 @@ def test_normalize_ep_publication_number():
 
 
 @pytest.mark.parametrize(
+    ("value", "normalized_number", "lookup_number"),
+    [
+        ("US20210184727A1", "US2021184727A1", "US2021184727"),
+        ("US20170160205A1", "US2017160205A1", "US2017160205"),
+        ("US20150022732A1", "US2015022732A1", "US2015022732"),
+        ("CN114302447A", "CN114302447A", "CN114302447"),
+        ("JP2020123456A", "JP2020123456A", "JP2020123456"),
+        ("KR20200012345A", "KR20200012345A", "KR20200012345"),
+        ("GB1234567A", "GB1234567A", "GB1234567"),
+    ],
+)
+def test_normalize_national_publication_for_epo(
+    value: str,
+    normalized_number: str,
+    lookup_number: str,
+):
+    reference = normalize_patent_number(value, source_override=PatentSource.EPO)
+
+    assert reference.source is PatentSource.EPO
+    assert reference.normalized_number == normalized_number
+    assert reference.lookup_number == lookup_number
+
+
+@pytest.mark.parametrize(
     ("value", "normalized_number"),
     [
         ("EP25188322.9", "EP25188322.9"),
@@ -586,8 +610,8 @@ def test_lookup_service_routes_ep_and_wo():
     assert ep_response.designated_states.countries == []
     assert ep_response.related_patent_documents == []
     assert ep_response.international_filing_date is None
-    assert ep_response.filing_deadline_30_months == "20260413"
-    assert ep_response.filing_deadline_31_months == "20260513"
+    assert ep_response.filing_deadline_30_months is None
+    assert ep_response.filing_deadline_31_months is None
     assert ep_response.total_pages is None
     assert ep_response.original_file_download_url is None
     assert ep_response.drawings == PatentDrawingsInfo()

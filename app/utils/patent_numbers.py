@@ -21,9 +21,19 @@ _PCT_COMPACT_PATTERN = re.compile(
 _PCT_SLASH_PATTERN = re.compile(
     r"^PCT/(?P<office>[A-Z]{2})(?P<year>\d{4})/(?P<serial>\d{6})$"
 )
+_NATIONAL_PATTERN = re.compile(
+    r"^(?P<country>[A-Z]{2})(?P<doc_number>[A-Z0-9]{4,}?)(?P<kind>[A-Z]\d{0,2})?$"
+)
+_US_PUBLICATION_PATTERN = re.compile(
+    r"^(?P<year>\d{4})(?P<serial>\d{7})$"
+)
 
 
-def normalize_patent_number(raw_value: str) -> PatentReference:
+def normalize_patent_number(
+    raw_value: str,
+    *,
+    source_override: PatentSource | str | None = None,
+) -> PatentReference:
     value = raw_value.strip().upper()
     if not value:
         raise PatentServiceError(
@@ -39,15 +49,22 @@ def normalize_patent_number(raw_value: str) -> PatentReference:
             return _normalize_ep_application(application_match)
 
     compact = _SEPARATOR_PATTERN.sub("", value)
+    override = PatentSource(source_override) if source_override else None
+    if override is PatentSource.EPO and not compact.startswith(("EP", "WO", "PCT")):
+        return _normalize_national_epo(value, compact)
     if compact.startswith("PCT"):
-        return _normalize_pct(value, compact)
+        reference = _normalize_pct(value, compact)
+        return _require_source(reference, override)
     if compact.startswith("EP"):
         application_match = _EP_APPLICATION_EPODOC_PATTERN.fullmatch(compact)
         if application_match:
-            return _normalize_ep_application(application_match)
-        return _normalize_ep(compact)
+            reference = _normalize_ep_application(application_match)
+        else:
+            reference = _normalize_ep(compact)
+        return _require_source(reference, override)
     if compact.startswith("WO") or value.startswith("WO/"):
-        return _normalize_wo(value, compact)
+        reference = _normalize_wo(value, compact)
+        return _require_source(reference, override)
 
     prefix_match = re.match(r"^(?P<prefix>[A-Z]{2})", compact)
     if prefix_match:
@@ -63,6 +80,59 @@ def normalize_patent_number(raw_value: str) -> PatentReference:
         status_code=422,
         message="Patent number format is invalid.",
     )
+
+
+def _require_source(
+    reference: PatentReference, override: PatentSource | None
+) -> PatentReference:
+    if override is None or reference.source is override:
+        return reference
+    raise PatentServiceError(
+        code=ErrorCode.UNSUPPORTED_JURISDICTION,
+        status_code=422,
+        message="The patent number is incompatible with the requested source.",
+        source=override.value,
+        details={
+            "requested_source": override.value,
+            "detected_source": reference.source.value,
+        },
+    )
+
+
+def _normalize_national_epo(value: str, compact: str) -> PatentReference:
+    match = _NATIONAL_PATTERN.fullmatch(compact)
+    if not match:
+        raise PatentServiceError(
+            code=ErrorCode.INVALID_PATENT_NUMBER_FORMAT,
+            status_code=422,
+            message="National publication number format is invalid.",
+            source="epo",
+        )
+
+    country_code = match.group("country")
+    input_doc_number = match.group("doc_number")
+    kind_code = match.group("kind") or None
+    doc_number = _to_epodoc_document_number(country_code, input_doc_number)
+    normalized_number = f"{country_code}{doc_number}{kind_code or ''}"
+    return PatentReference(
+        source=PatentSource.EPO,
+        normalized_number=normalized_number,
+        display_number=value,
+        country_code=country_code,
+        doc_number=doc_number,
+        kind_code=kind_code,
+        lookup_number=f"{country_code}{doc_number}",
+    )
+
+
+def _to_epodoc_document_number(country_code: str, doc_number: str) -> str:
+    if country_code != "US":
+        return doc_number
+    match = _US_PUBLICATION_PATTERN.fullmatch(doc_number)
+    if not match:
+        return doc_number
+    serial = match.group("serial")
+    return f"{match.group('year')}{serial[1:] if serial.startswith('0') else serial}"
 
 
 def _normalize_ep(compact: str) -> PatentReference:

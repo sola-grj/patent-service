@@ -57,11 +57,21 @@ class PatentCacheService:
                 source="cache",
                 details={"request_id": request_id},
             )
-        reference = normalize_patent_number(lookup.normalized_number)
+        reference = normalize_patent_number(
+            lookup.normalized_number,
+            source_override=lookup.source,
+        )
         if (
             analysis.input_mode != "patent_number"
             or not analysis.patent_number
-            or normalize_patent_number(analysis.patent_number).normalized_number
+            or (
+                analysis.source_document
+                and analysis.source_document.source != lookup.source
+            )
+            or normalize_patent_number(
+                analysis.patent_number,
+                source_override=lookup.source,
+            ).normalized_number
             != reference.normalized_number
         ):
             raise PatentServiceError(
@@ -241,7 +251,10 @@ class PatentCacheService:
         if not await self._cache.claim_processing(patent_id):
             return
         trace_id = f"cache-{uuid.uuid4().hex}"
-        reference = normalize_patent_number(lookup.normalized_number)
+        reference = normalize_patent_number(
+            lookup.normalized_number,
+            source_override=lookup.source,
+        )
         try:
             prepared = await self._read_prepared_artifact(analysis)
             if prepared is None:
@@ -252,6 +265,7 @@ class PatentCacheService:
                         PatentLookupRequest(
                             patent_number=reference.normalized_number,
                             include_original_file=True,
+                            source=lookup.source,
                         ),
                         storage_dir=Path(directory),
                     )
@@ -367,6 +381,16 @@ async def _read_original_file(
     response: PatentLookupApiResponse,
 ) -> tuple[bytes, str, str, str | None]:
     if isinstance(response, PatentLookupEpResponse):
+        original = response.original_file
+        if original.storage_path:
+            path = Path(original.storage_path)
+            if path.is_file():
+                return (
+                    await asyncio.to_thread(path.read_bytes),
+                    original.filename or path.name,
+                    original.content_type or "application/pdf",
+                    None,
+                )
         if not response.original_file_download_url:
             raise _original_unavailable()
         content, mime_type = await _download(response.original_file_download_url)
