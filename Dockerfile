@@ -13,7 +13,6 @@ RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debia
     && apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
-        curl \
         libreoffice-writer \
         tesseract-ocr \
         tesseract-ocr-ara \
@@ -39,8 +38,5 @@ RUN mkdir -p /tmp/patent-service/wipo /tmp/patent-service/analysis \
     && python -m app.analysis.preload_ocr_models --languages en,de,fr,ru,ko,ar
 
 EXPOSE 9098
-
-HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-  CMD sh -c 'curl -fsS "http://127.0.0.1:9098/api/health" >/dev/null || exit 1'
 
 CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "9098"]
